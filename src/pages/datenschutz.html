@@ -18,12 +18,13 @@
          Beschreibt genau das, was diese Website technisch tut: Hosting bei
          Cloudflare, zwei JSON-Feeds samt Bildern von Vercel (die cleebration-Hubs),
          Schriften vom eigenen Server, Videos (YouTube/Vimeo) nur auf den
-         Detailseiten von Einträgen mit Video. Kein Tracking, keine Cookies,
+         Detailseiten von Einträgen mit Video, und erst nach Klick. Kein Tracking, keine Cookies,
          kein Newsletter, kein Formular.
 
-         Offen (Chris): Videos laden beim Öffnen der Detailseite sofort den
-         Player des Anbieters. Wer das vermeiden will, braucht eine
-         Zwei-Klick-Lösung im Galerie-Modul (Vorschaubild, Player erst nach Klick).
+         Videos: Zwei-Klick-Lösung im Galerie-Modul (PATCH moraro, 15.10.2026) –
+         der Player des Anbieters lädt erst nach Klick auf „Video abspielen“.
+         Vorschaubilder kommen vom Gallery-Hub (Vercel), nicht von YouTube –
+         vorausgesetzt, der Hub legt sie selbst ab (prüfen beim ersten Video).
 
          Ändert sich am Hosting etwas, muss dieser Text mit. Eine anwaltliche
          Durchsicht ersetzt er nicht. -->
@@ -63,10 +64,12 @@
     <p>
       Manche Einträge enthalten ein Video, das bei YouTube (Google Ireland
       Limited, Gordon House, Barrow Street, Dublin 4, Irland) oder Vimeo
-      (Vimeo.com, Inc., New York, USA) liegt. In Übersichten erscheint nur ein
-      Vorschaubild. Öffnet man die Detailseite eines solchen Eintrags, wird der
-      Player des Anbieters geladen; dabei erhält der Anbieter Ihre IP-Adresse und
-      technische Daten des Browsers und kann eigene Cookies setzen. Es gelten die
+      (Vimeo.com, Inc., New York, USA) liegt. Diese Website zeigt zunächst nur
+      ein Vorschaubild von ihrem eigenen Bildspeicher. Erst wenn Sie auf
+      „Video abspielen“ klicken, wird der Player des Anbieters geladen; dabei
+      erhält der Anbieter Ihre IP-Adresse und technische Daten des Browsers und
+      kann eigene Cookies setzen. Rechtsgrundlage ist Ihre Einwilligung durch
+      den Klick (Art. 6 Abs. 1 lit. a DSGVO). Es gelten die
       Datenschutzbestimmungen des jeweiligen Anbieters.
     </p>
 

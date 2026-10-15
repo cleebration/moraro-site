@@ -127,6 +127,17 @@ const STYLES = `
     padding: .15rem .55rem; border-radius: 999px;
     border: 1px solid var(--gal-border); color: var(--gal-muted);
   }
+  /* PATCH moraro: Zwei-Klick-Video – Player des Anbieters erst nach Klick laden (Datenschutz) */
+  .vconsent { position: relative; display: block; width: 100%; aspect-ratio: 16/9; border: 0; padding: 0; cursor: pointer;
+    background: #1c1b19 center / cover no-repeat; color: #fff; font: inherit; overflow: hidden; border-radius: var(--gal-radius); }
+  .vconsent::before { content: ""; position: absolute; inset: 0; background: rgba(0,0,0,.45); }
+  .vconsent__inner { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .6rem; padding: 1rem; text-align: center; }
+  .vconsent__play { width: 68px; height: 68px; border-radius: 50%; background: var(--gal-accent); color: var(--gal-accent-contrast); display: grid; place-items: center; }
+  .vconsent__play svg { width: 30px; height: 30px; margin-left: 4px; }
+  .vconsent__titel { font-weight: 600; font-size: 1.05rem; }
+  .vconsent__hinweis { font-size: .8rem; max-width: 34em; opacity: .9; }
+  .lb__stage .vconsent { width: min(94vw, 1100px); }
+  .vconsent:focus-visible { outline: 3px solid var(--gal-accent); outline-offset: 3px; }
   .badge {
     position: absolute; top: .55rem; right: .55rem;
     width: 2.1rem; height: 2.1rem; border-radius: 999px;
@@ -361,6 +372,29 @@ function playBadge() {
   return `<span class="badge" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></span>`;
 }
 
+/* PATCH moraro: Zwei-Klick-Lösung für YouTube/Vimeo. Statt sofort den fremden Player zu
+   laden, erscheint ein Vorschaubild mit Hinweis; erst der Klick lädt das iframe. */
+function anbieter(embed) {
+  return /vimeo/i.test(embed) ? "Vimeo" : /youtu/i.test(embed) ? "YouTube" : "dem Video-Anbieter";
+}
+function videoConsent(it) {
+  const name = anbieter(it.video.embed);
+  const bild = it.thumb || it.image || "";
+  return `<button type="button" class="vconsent" data-embed="${esc(it.video.embed)}"${bild ? ` style="background-image:url('${esc(bild)}')"` : ""}>
+    <span class="vconsent__inner"><span class="vconsent__play" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></span>
+    <span class="vconsent__titel">Video abspielen</span>
+    <span class="vconsent__hinweis">Beim Abspielen wird das Video von ${name} geladen. Dabei werden Daten (z. B. Ihre IP-Adresse) an ${name} übertragen.</span></span></button>`;
+}
+function wireConsent(root) {
+  if (root.__vconsent) return; root.__vconsent = true;
+  root.addEventListener("click", (e) => {
+    const b = e.target.closest && e.target.closest(".vconsent");
+    if (!b) return;
+    const sep = b.dataset.embed.includes("?") ? "&" : "?";
+    b.outerHTML = `<iframe src="${b.dataset.embed}${sep}autoplay=1" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>`;
+  });
+}
+
 async function fetchFeed(url, sprache) {
   /* {lang} in der Feed-Adresse durch die aktive Sprache ersetzen.
      Der Hub liefert je Sprache eine Datei; ohne Platzhalter bleibt
@@ -371,7 +405,18 @@ async function fetchFeed(url, sprache) {
   // noch keinen Eintrag → leere Liste („Noch keine Medien.“) statt Fehlermeldung.
   if (res.status === 404) return [];
   if (!res.ok) throw new Error("Feed " + res.status);
-  return res.json();
+  const data = await res.json();
+  // PATCH moraro: Ohne eigenes Standbild setzt der Hub das Vorschaubild von YouTube
+  // (i.ytimg.com) ein – das würde schon beim Ansehen der Übersicht Daten an Google
+  // senden. Solche fremden Vorschaubilder werden verworfen (Kachel zeigt „Bild folgt“).
+  // Abhilfe im Cockpit: beim Video immer ein eigenes „Foto / Standbild“ hochladen.
+  const fremd = (u) => /^https?:\/\/([a-z0-9-]+\.)*(ytimg\.com|youtube\.com|vimeocdn\.com)\//i.test(String(u || ""));
+  return (Array.isArray(data) ? data : []).map((it) => {
+    if (fremd(it.image)) it.image = "";
+    if (fremd(it.thumb)) it.thumb = "";
+    if (Array.isArray(it.images)) it.images = it.images.filter((u) => !fremd(u));
+    return it;
+  });
 }
 
 function applyFilters(items, { site, gallery, tags }) {
@@ -411,6 +456,7 @@ class GalleryGrid extends HTMLElement {
 
   connectedCallback() {
     this.attachShadow({ mode: "open" });
+    wireConsent(this.shadowRoot);   // PATCH moraro
     this._activeTag = null;
     this._sprache = aktiveSprache(this);
     this.render(`<div class="empty">${texte(this._sprache).laedt}</div>`);
@@ -554,7 +600,7 @@ class GalleryGrid extends HTMLElement {
       if (it.media === "video" && it.video) {
         if (it.video.kind === "file")
           return `<video src="${esc(it.video.src)}" controls autoplay playsinline></video>`;
-        return `<iframe src="${esc(it.video.embed)}?autoplay=1" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>`;
+        return videoConsent(it);   // PATCH moraro: Zwei-Klick
       }
       if (it.image) return `<img src="${esc(it.image)}" alt="${esc(it.title)}" />`;
       return `<div style="color:#c9c4ba">${esc(texte(this._sprache).bildFolgt)}</div>`;
@@ -603,6 +649,7 @@ class GalleryDetail extends HTMLElement {
 
   connectedCallback() {
     this.attachShadow({ mode: "open" });
+    wireConsent(this.shadowRoot);   // PATCH moraro
     this._sprache = aktiveSprache(this);
     this.render(`<div class="empty">${texte(this._sprache).laedt}</div>`);
     this._unsub = window.SiteI18n
@@ -644,7 +691,7 @@ class GalleryDetail extends HTMLElement {
   media(it) {
     if (it.media === "video" && it.video) {
       if (it.video.kind === "file") return `<video src="${esc(it.video.src)}" controls playsinline></video>`;
-      return `<iframe src="${esc(it.video.embed)}" allow="fullscreen; picture-in-picture" allowfullscreen></iframe>`;
+      return videoConsent(it);   // PATCH moraro: Zwei-Klick
     }
     if (it.image) return `<img src="${esc(it.image)}" alt="${esc(it.title)}" />`;
     return `<div class="tile__ph" style="aspect-ratio:var(--gal-aspect)">Bild folgt</div>`;
