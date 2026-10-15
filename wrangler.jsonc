@@ -8,13 +8,14 @@
   "workers_dev": true,
   "preview_urls": true,
 
-  // Schritt 2 (eigene Domain): moraro.world liegt bei GoDaddy (DNS dort, keine Website).
-  // Zone moraro.world in Cloudflare anlegen, Nameserver bei GoDaddy umstellen,
-  // dann diesen Block einkommentieren und `npm run deploy`.
-  // "routes": [
-  //   { "pattern": "moraro.world",     "custom_domain": true },
-  //   { "pattern": "www.moraro.world", "custom_domain": true }
-  // ],
+  // Die eigenen Namen. Cloudflare legt die DNS-Einträge beim Deploy selbst an.
+  // Der Worker führt www.moraro.world auf moraro.world.
+  // Zone moraro.world in Cloudflare seit 15.10.2026 (Nameserver frank/keira.ns.cloudflare.com),
+  // GoDaddy-Parkseite (A @ ×2, CNAME www) entfernt. Erst deployen, wenn die Zone „Active“ ist.
+  "routes": [
+    { "pattern": "moraro.world",     "custom_domain": true },
+    { "pattern": "www.moraro.world", "custom_domain": true }
+  ],
 
   "assets": {
     "directory": "public",
