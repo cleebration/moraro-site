@@ -1,0 +1,20 @@
+# ===========================================================================
+#  Weiterleitungen moraro.world
+#
+#  EINE Quelle, ZWEI Leser (wie klangerie-site / lko-site):
+#   1. build.mjs übersetzt die 3xx-Zeilen nach worker/redirects.generated.js
+#   2. Cloudflares Asset-Schicht liest diese Datei selbst
+#   - KEINE 200-Zeilen — unter Workers Endlosschleife
+#   - die erste passende Regel gewinnt
+# ===========================================================================
+
+# --- Kurz- und Ausweichadressen ----------------------------------------------
+/bau            /anlage           301
+/gleisplan      /anlage           301
+/fahrzeugpark   /fahrzeuge        301
+/loks           /fahrzeuge        301
+/rollmaterial   /fahrzeuge        301
+/dampf          /dampflokbahnen   301
+/dampfbahnen    /dampflokbahnen   301
+/gallerie       /galerie          301
+/post/*         /blog             301

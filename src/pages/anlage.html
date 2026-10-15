@@ -1,0 +1,62 @@
+<!--meta
+{
+  "title": "Meine Anlage | MoRaRo",
+  "description": "Die MoRaRo-Anlage: 400 × 200 cm, Spur H0, Märklin K-Gleis, drei Ebenen mit Hauptbahnhof, Bahnbetriebswerk, Schattenbahnhöfen und Paradestrecke.",
+  "nav": "anlage",
+  "out": "anlage.html",
+  "scripts": "<script type=\"module\" src=\"/assets/blog-widget.js\"></script>\n<script type=\"module\" src=\"/assets/gallery-widget.js\"></script>"
+}
+-->
+
+<div class="dark">
+  <header class="page-head wrap">
+    <p class="kicker">Gleis 1 · Bau</p>
+    <h1>Meine Anlage</h1>
+    <p class="lead">Eine fiktive Anlage, auf der alles fahren darf, was mir gefällt – Epochen und Länder bunt gemischt. Geplant mit RailModeller Pro, gesteuert mit Märklin CS3 und iTrain.</p>
+  </header>
+  {{GLEIS}}
+</div>
+
+<section class="section wrap">
+  <div class="split">
+    <div class="prose">
+      <p class="kicker">Der Plan</p>
+      <h2 style="margin-top:0">400 × 200 cm, drei Ebenen</h2>
+      <p>Die Anlage liegt auf drei Ebenen: zwei verdeckte Ebenen mit Schattenbahnhöfen und darüber die sichtbare Landschaft. Die Rampen dazwischen haben höchstens 2,5&nbsp;% Steigung – das schaffen auch die beiden Märklin Big Boy, die außerdem Radien ab 450&nbsp;mm brauchen.</p>
+      <p>Noch offen ist, wie die Züge die Höhe gewinnen: über eine verdeckte Gleiswendel oder ein sichtbares Steigungsoval. Der Baubericht hält fest, wie es weitergeht.</p>
+      <p class="meta">Stand: Planung, Oktober 2026</p>
+    </div>
+    <dl class="steckbrief">
+      <div><dt>Fläche</dt><dd>400 × 200 cm</dd></div>
+      <div><dt>Ebenen</dt><dd>0 / +6 / +12 cm</dd></div>
+      <div><dt>Gleis</dt><dd>Märklin K-Gleis</dd></div>
+      <div><dt>Steigung</dt><dd>max. 2,5 %</dd></div>
+      <div><dt>Radien sichtbar</dt><dd>R3–R4</dd></div>
+      <div><dt>Radien verdeckt</dt><dd>R2</dd></div>
+      <div><dt>Unterbau</dt><dd>Birke-Multiplex 12 mm</dd></div>
+      <div><dt>Steuerung</dt><dd>CS3 · iTrain</dd></div>
+    </dl>
+  </div>
+</section>
+
+<section class="section wrap" style="padding-top:0">
+  <p class="kicker">Was entsteht</p>
+  <h2 style="font-size:clamp(1.8rem,4vw,2.6rem)">Die Bereiche</h2>
+  <ul class="zonen">
+    <li><span class="zone">Ebene 2 · sichtbar</span><strong>Hauptbahnhof über die Diagonale</strong>Fünf Gleise mit zwei Bahnsteigen auf rund 4,5 m Länge, schlanke Weichen, ein Gleis für die Rollende Landstraße und ein Stumpfgleis.</li>
+    <li><span class="zone">Ebene 2 · sichtbar</span><strong>Bahnbetriebswerk</strong>Märklin-Drehscheibe mit Ringlokschuppen und Behandlungsanlagen für Dampfloks.</li>
+    <li><span class="zone">Ebene 2 · sichtbar</span><strong>Straßen mit Verkehr</strong>Viessmann CarMotion mit Bushaltestelle und Bahnübergang.</li>
+    <li><span class="zone">Ebene 2 · sichtbar</span><strong>Paradestrecke</strong>Viadukt, Tunnel und ein kleiner Haltepunkt – die Strecke, auf der die Züge zeigen dürfen, was sie können.</li>
+    <li><span class="zone">Ebene 0 und 1 · verdeckt</span><strong>Zwei Schattenbahnhöfe</strong>Sechs und fünf Abstellgleise, jeweils mit Kehrschleife – hier warten die Züge auf ihren Einsatz.</li>
+  </ul>
+</section>
+
+<section class="section wrap" style="padding-top:0">
+  <div class="section-head"><h2>Baubericht</h2><a class="mehr" href="/blog">Alle Beiträge →</a></div>
+  <blog-list feed="{{FEED_BLOG}}" post-url="/post" tags="anlage" page-size="6" credit="off"></blog-list>
+</section>
+
+<section class="section wrap" style="padding-top:0">
+  <div class="section-head"><h2>Fotos vom Bau</h2></div>
+  <gallery-grid feed="{{FEED_GALLERY}}" gallery="{{G_ANLAGE}}" detail-url="/bild" param="bild"></gallery-grid>
+</section>

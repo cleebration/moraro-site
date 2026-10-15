@@ -1,0 +1,22 @@
+<!--meta
+{
+  "title": "Galerie | MoRaRo",
+  "description": "Alle Fotos und Videos von MoRaRo: Anlage, Fahrzeuge und Dampflokbahnen.",
+  "nav": "galerie",
+  "out": "galerie.html",
+  "scripts": "<script type=\"module\" src=\"/assets/gallery-widget.js\"></script>"
+}
+-->
+
+<div class="dark">
+  <header class="page-head wrap">
+    <p class="kicker">Fotos &amp; Videos</p>
+    <h1>Galerie</h1>
+    <p class="lead">Alles an einem Ort: Anlage, Fahrzeuge und Fahrten mit Dampflokbahnen.</p>
+  </header>
+  {{GLEIS}}
+</div>
+
+<section class="section wrap">
+  <gallery-grid feed="{{FEED_GALLERY}}" filter="on" detail-url="/bild" param="bild"></gallery-grid>
+</section>

@@ -1,0 +1,220 @@
+/* ==========================================================================
+   moraro.world – Website-Stil
+   Marke: Branding-Kit v1 (1! claude/04 Templates/Branding/MoRaRo, 15.10.2026)
+   Ruß, Signal, Messing · Oswald / Barlow / IBM Plex Mono
+   ========================================================================== */
+
+:root {
+  --russ:       #1C1B19;
+  --pit:        #3A3732;
+  --rot:        #B3261E;
+  --rot-dk:     #8E1E17;
+  --messing:    #C9A24A;
+  --messing-dk: #8A6A1F;
+  --creme:      #EDE3C5;
+  --schotter:   #6B665D;
+  --papier:     #F2EFE8;
+  --weiss:      #FFFFFF;
+  --linie:      #DDD6C8;
+
+  --font-display: "Oswald", "Arial Narrow", sans-serif;
+  --font-body:    "Barlow", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono:    "IBM Plex Mono", ui-monospace, Menlo, monospace;
+
+  --maxwidth: 1180px;
+  --radius: 6px;
+}
+
+/* Themes der Kit-Module: direkt am Element setzen, weil die Module im
+   Shadow DOM eigene Standardwerte auf :host legen (Vererbung von :root reicht nicht). */
+blog-list, blog-post {
+  /* Blog-Kit */
+  --blog-font-display: var(--font-display);
+  --blog-font-body:    var(--font-body);
+  --blog-bg:           transparent;
+  --blog-surface:      var(--weiss);
+  --blog-text:         var(--russ);
+  --blog-muted:        var(--schotter);
+  --blog-accent:       var(--rot);
+  --blog-accent-contrast: var(--weiss);
+  --blog-border:       var(--linie);
+  --blog-radius:       var(--radius);
+  --blog-gap:          1.5rem;
+  --blog-maxwidth:     var(--maxwidth);
+  --blog-readwidth:    700px;
+}
+
+gallery-grid, gallery-detail {
+  /* Galerie-Kit */
+  --gal-font-display: var(--font-display);
+  --gal-font-body:    var(--font-body);
+  --gal-bg:           transparent;
+  --gal-surface:      var(--weiss);
+  --gal-text:         var(--russ);
+  --gal-muted:        var(--schotter);
+  --gal-accent:       var(--rot);
+  --gal-accent-contrast: var(--weiss);
+  --gal-border:       var(--linie);
+  --gal-radius:       var(--radius);
+  --gal-gap:          1rem;
+  --gal-tile:         250px;
+  --gal-aspect:       3 / 2;
+  --gal-maxwidth:     var(--maxwidth);
+  --gal-overlay:      rgba(28, 27, 25, .94);
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 1.125rem;
+  line-height: 1.6;
+  color: var(--russ);
+  background: var(--papier);
+}
+img { max-width: 100%; height: auto; display: block; }
+a { color: var(--rot); text-underline-offset: .18em; }
+a:hover { color: var(--rot-dk); }
+h1, h2, h3 { font-family: var(--font-display); font-weight: 600; line-height: 1.1; margin: 0 0 .6em; letter-spacing: .005em; }
+p { margin: 0 0 1em; }
+:focus-visible { outline: 3px solid var(--messing); outline-offset: 2px; }
+
+.wrap { max-width: var(--maxwidth); margin: 0 auto; padding: 0 16px; }
+@media (min-width: 720px) { .wrap { padding: 0 32px; } }
+
+.skip-link { position: absolute; left: -999px; top: 0; background: var(--messing); color: var(--russ); padding: .6rem 1rem; z-index: 100; }
+.skip-link:focus { left: 1rem; }
+
+/* ---------- Gleisband (Markenelement) ---------- */
+.gleis {
+  height: 24px;
+  background:
+    linear-gradient(var(--messing), var(--messing)) 0 6px / 100% 3px no-repeat,
+    linear-gradient(var(--messing), var(--messing)) 0 15px / 100% 3px no-repeat,
+    repeating-linear-gradient(90deg, var(--schotter) 0 7px, transparent 7px 26px) 0 2px / 100% 20px no-repeat;
+}
+
+/* ---------- Kopf ---------- */
+.site-top { background: var(--russ); color: var(--creme); position: sticky; top: 0; z-index: 20; border-bottom: 3px solid var(--messing); }
+.site-top__inner { display: flex; align-items: center; justify-content: space-between; gap: 1rem 2rem; min-height: 76px; flex-wrap: wrap; padding-top: .5rem; padding-bottom: .5rem; }
+.brand img { height: 56px; width: auto; }
+.mainnav ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: .25rem 1.4rem; }
+.mainnav a {
+  font-family: var(--font-display); font-weight: 500; font-size: 1.08rem; letter-spacing: .02em;
+  color: var(--creme); text-decoration: none; padding: .45rem 0; display: inline-block;
+  border-bottom: 3px solid transparent;
+}
+.mainnav a:hover { color: var(--weiss); border-bottom-color: var(--messing); }
+.mainnav a[aria-current="page"] { color: var(--weiss); border-bottom-color: var(--rot); }
+@media (max-width: 860px) {
+  .site-top { position: static; }
+  .site-top__inner { flex-direction: column; align-items: flex-start; gap: .25rem; padding-bottom: .25rem; }
+  .brand img { height: 48px; }
+  .mainnav { width: 100%; }
+  .mainnav ul { gap: 0 1.1rem; }
+  .mainnav a { font-size: 1rem; min-height: 44px; display: inline-flex; align-items: center; }
+}
+
+/* ---------- Bausteine ---------- */
+.kicker { font-family: var(--font-mono); font-size: .8rem; letter-spacing: .14em; text-transform: uppercase; color: var(--messing-dk); margin: 0 0 .75rem; }
+.dark .kicker { color: var(--messing); }
+.dark { background: var(--russ); color: var(--creme); }
+.dark a:not(.btn) { color: var(--messing); }
+.dark h1, .dark h2, .dark h3 { color: var(--weiss); }
+.hl { color: var(--rot); }
+.dark .hl { color: #E0453B; }
+.lead { font-size: 1.25rem; line-height: 1.55; max-width: 38em; }
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: .5rem;
+  min-height: 48px; padding: .6rem 1.3rem; border-radius: var(--radius);
+  font-family: var(--font-display); font-weight: 500; font-size: 1.05rem; letter-spacing: .03em;
+  text-decoration: none; border: 2px solid transparent;
+}
+.btn--rot { background: var(--rot); color: var(--weiss); }
+.btn--rot:hover { background: var(--rot-dk); color: var(--weiss); }
+.btn--ghost { border-color: var(--messing); color: var(--creme); }
+.btn--ghost:hover { background: var(--messing); color: var(--russ); }
+.btn-row { display: flex; flex-wrap: wrap; gap: .75rem; margin-top: 1.5rem; }
+
+.section { padding-block: 4rem; }
+.section--tight { padding-block: 2.5rem; }
+.section-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: .5rem 1.5rem; margin-bottom: 1.5rem; }
+.section-head h2 { margin: 0; font-size: clamp(1.8rem, 4vw, 2.6rem); }
+.mehr { font-family: var(--font-display); font-weight: 500; text-decoration: none; }
+
+/* ---------- Startseite: Bühne ---------- */
+.hero { padding-block: 3.5rem 3rem; }
+.hero__grid { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 2rem 3rem; align-items: center; }
+.hero h1 { font-size: clamp(2.5rem, 6.4vw, 4.6rem); font-weight: 700; line-height: 1.02; margin-bottom: 1.2rem; }
+.hero__plakette { justify-self: center; width: min(100%, 420px); filter: drop-shadow(0 18px 40px rgba(0,0,0,.45)); }
+.hero__plakette img { width: 100%; }
+@media (max-width: 860px) {
+  .hero { padding-top: 2rem; }
+  .hero__grid { grid-template-columns: 1fr; }
+  .hero__plakette { order: -1; width: min(70%, 300px); }
+}
+
+/* ---------- Drei Gleise (Bereiche) ---------- */
+.gleise { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.25rem; }
+@media (max-width: 900px) { .gleise { grid-template-columns: 1fr; } }
+.gleis-karte {
+  background: var(--weiss); border: 1px solid var(--linie); border-radius: var(--radius);
+  display: flex; flex-direction: column; overflow: hidden; text-decoration: none; color: var(--russ);
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+.gleis-karte:hover { transform: translateY(-3px); box-shadow: 0 12px 28px rgba(28,27,25,.12); color: var(--russ); }
+.gleis-karte__kopf { background: var(--russ); color: var(--weiss); display: flex; align-items: center; gap: .8rem; padding: .8rem 1.1rem; }
+/* Bahnsteig-Schild: Gleisnummer im hellen Kasten */
+.gleisnr { background: var(--weiss); color: var(--russ); font-family: var(--font-display); font-weight: 700; font-size: 1.6rem; line-height: 1; min-width: 2.4rem; text-align: center; padding: .25rem .4rem; border-radius: 3px; }
+.gleis-karte__kopf span:last-child { font-family: var(--font-mono); font-size: .78rem; letter-spacing: .14em; text-transform: uppercase; color: var(--creme); }
+.gleis-karte__body { padding: 1.3rem 1.3rem 1.5rem; display: flex; flex-direction: column; flex: 1; }
+.gleis-karte h3 { font-size: 1.7rem; margin-bottom: .4rem; }
+.gleis-karte p { color: #3A3732; flex: 1; }
+.gleis-karte .pfeil { font-family: var(--font-display); font-weight: 500; color: var(--rot); }
+
+/* ---------- Steckbrief (technische Daten) ---------- */
+.steckbrief { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; background: var(--linie); border: 1px solid var(--linie); border-radius: var(--radius); overflow: hidden; margin: 0; }
+.steckbrief div { background: var(--weiss); padding: 1rem 1.1rem; }
+.steckbrief dt { font-family: var(--font-mono); font-size: .74rem; letter-spacing: .12em; text-transform: uppercase; color: var(--schotter); margin-bottom: .3rem; }
+.steckbrief dd { margin: 0; font-family: var(--font-display); font-weight: 500; font-size: 1.3rem; line-height: 1.2; }
+.split .steckbrief { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (max-width: 560px) { .steckbrief, .split .steckbrief { grid-template-columns: repeat(2, minmax(0, 1fr)); } .steckbrief dd { font-size: 1.1rem; } }
+.dark .steckbrief { background: #3A3732; border-color: #3A3732; }
+.dark .steckbrief div { background: #24231F; }
+.dark .steckbrief dt { color: var(--messing); }
+.dark .steckbrief dd { color: var(--weiss); }
+
+/* ---------- Seitenkopf ---------- */
+.page-head { padding-block: 3rem 2.25rem; }
+.page-head h1 { font-size: clamp(2.3rem, 5.5vw, 3.8rem); font-weight: 700; margin-bottom: .6rem; }
+.page-head .lead { color: var(--creme); }
+
+/* ---------- Text ---------- */
+.split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 2.5rem 3.5rem; align-items: start; }
+@media (max-width: 860px) { .split { grid-template-columns: 1fr; } }
+.prose { max-width: 720px; }
+.prose h2 { font-size: 1.6rem; margin-top: 2rem; }
+.prose ul { padding-left: 1.2rem; }
+.prose li { margin-bottom: .4rem; }
+.meta { color: var(--schotter); font-size: .95rem; }
+
+.zonen { list-style: none; padding: 0; margin: 0; display: grid; gap: .9rem; }
+.zonen li { background: var(--weiss); border: 1px solid var(--linie); border-left: 5px solid var(--messing); border-radius: var(--radius); padding: 1rem 1.2rem; }
+.zonen strong { font-family: var(--font-display); font-weight: 600; font-size: 1.2rem; display: block; margin-bottom: .15rem; }
+.zonen .zone { font-family: var(--font-mono); font-size: .75rem; letter-spacing: .12em; color: var(--rot); text-transform: uppercase; }
+
+.hinweis { background: var(--weiss); border: 1px dashed var(--messing-dk); border-radius: var(--radius); padding: 1rem 1.2rem; color: #3A3732; }
+
+/* ---------- Fuß ---------- */
+.site-foot { background: var(--russ); color: var(--creme); margin-top: 4rem; font-size: 1rem; }
+.site-foot .gleis { background-color: var(--russ); }
+.site-foot__grid { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr); gap: 2rem; padding-top: 2.5rem; padding-bottom: 2.5rem; }
+@media (max-width: 860px) { .site-foot__grid { grid-template-columns: 1fr; } }
+.site-foot a { color: var(--messing); }
+.site-foot a:hover { color: var(--weiss); }
+.site-foot__brand { display: flex; gap: 1rem; align-items: flex-start; }
+.site-foot__brand img { width: 88px; height: 88px; flex: none; }
+.site-foot__mail { font-family: var(--font-mono); font-size: .95rem; }
+.site-foot__credit { margin: 1rem 0 .4rem; }

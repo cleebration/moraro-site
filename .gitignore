@@ -1,0 +1,25 @@
+node_modules/
+.vercel
+.env
+.env.local
+*.log
+.DS_Store
+
+# Gebaute Seiten: entstehen aus src/ per `npm run build`.
+# Die Assets und Beispiel-Feeds unter public/ gehören dagegen ins Repo.
+public/*.html
+
+# Weiterleitungstabelle für den Worker: entsteht beim Build aus
+# public/_redirects. Gepflegt wird nur _redirects.
+worker/redirects.generated.js
+
+# Wrangler-Zwischenstände
+.wrangler/
+
+# Nur zum lokalen Ausprobieren, erzeugt von `npm run feeds:local`.
+# Nicht ins Repo: die alte Fassung enthielt Wix-Bildadressen und wurde
+# mitveroeffentlicht, obwohl sie keine Seite benutzt.
+public/feed-sample/
+
+# lokale Vorschaubilder
+_vorschau/

@@ -1,0 +1,27 @@
+{
+  // Cloudflare Worker mit statischen Assets — Aufbau wie klangerie-site / babowalls.com.
+  "name": "moraro-site",
+  "compatibility_date": "2026-10-15",
+  "main": "worker/index.js",
+
+  // workers.dev-Adresse: Vorschau, solange moraro.world noch nicht auf Cloudflare zeigt.
+  "workers_dev": true,
+  "preview_urls": true,
+
+  // Schritt 2 (eigene Domain): moraro.world liegt bei GoDaddy (DNS dort, keine Website).
+  // Zone moraro.world in Cloudflare anlegen, Nameserver bei GoDaddy umstellen,
+  // dann diesen Block einkommentieren und `npm run deploy`.
+  // "routes": [
+  //   { "pattern": "moraro.world",     "custom_domain": true },
+  //   { "pattern": "www.moraro.world", "custom_domain": true }
+  // ],
+
+  "assets": {
+    "directory": "public",
+    "binding": "ASSETS",
+    "html_handling": "auto-trailing-slash",
+    "run_worker_first": true
+  },
+
+  "observability": { "enabled": true }
+}

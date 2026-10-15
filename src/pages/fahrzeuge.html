@@ -1,0 +1,22 @@
+<!--meta
+{
+  "title": "Rollendes Material | MoRaRo",
+  "description": "Loks und Wagen der MoRaRo-Anlage: H0-Fahrzeuge aus allen Epochen und Ländern, auch aus den USA.",
+  "nav": "fahrzeuge",
+  "out": "fahrzeuge.html",
+  "scripts": "<script type=\"module\" src=\"/assets/gallery-widget.js\"></script>"
+}
+-->
+
+<div class="dark">
+  <header class="page-head wrap">
+    <p class="kicker">Gleis 2 · Loks &amp; Wagen</p>
+    <h1>Rollendes Material</h1>
+    <p class="lead">Was auf der Anlage fährt: Dampf-, Diesel- und Elloks, Wagen und ganze Züge – aus allen Epochen und Ländern, auch aus den USA. Zu jedem Fahrzeug gibt es ein Foto und einen kurzen Steckbrief.</p>
+  </header>
+  {{GLEIS}}
+</div>
+
+<section class="section wrap">
+  <gallery-grid feed="{{FEED_GALLERY}}" gallery="{{G_FAHRZEUGE}}" filter="on" teaser="on" detail-url="/fahrzeug" param="fahrzeug"></gallery-grid>
+</section>

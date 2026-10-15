@@ -1,0 +1,23 @@
+{
+  "name": "moraro-site",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "moraro.world — MoRaRo, ModelRailRoad in H0: Website aus den cleebration-Web-Kits",
+  "scripts": {
+    "build": "node build.mjs",
+    "dev": "node build.mjs && npx serve public -l 3000",
+    "serve": "npx serve public -l 3000",
+    "preflight": "node scripts/preflight.mjs",
+    "test:redirects": "node test/redirects.test.mjs",
+    "test:module": "node test/widgets-scope.test.mjs",
+    "test:pages": "node test/pages.test.mjs",
+    "test": "npm run build && npm run test:redirects && npm run test:module && npm run test:pages",
+    "deploy": "npm run build && wrangler deploy",
+    "dev:worker": "npm run build && wrangler dev",
+    "preview": "npm run build && wrangler versions upload --preview-alias vorschau"
+  },
+  "devDependencies": {
+    "wrangler": "^4.136.2"
+  }
+}

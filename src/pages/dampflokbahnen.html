@@ -1,0 +1,27 @@
+<!--meta
+{
+  "title": "Dampflokbahnen | MoRaRo",
+  "description": "Fotos und Videos von Fahrten mit historischen Dampflokbahnen.",
+  "nav": "dampflokbahnen",
+  "out": "dampflokbahnen.html",
+  "scripts": "<script type=\"module\" src=\"/assets/gallery-widget.js\"></script>\n<script type=\"module\" src=\"/assets/blog-widget.js\"></script>"
+}
+-->
+
+<div class="dark">
+  <header class="page-head wrap">
+    <p class="kicker">Gleis 3 · Unterwegs</p>
+    <h1>Dampflokbahnen</h1>
+    <p class="lead">Das große Vorbild: Hin und wieder fahre ich mit historischen Dampflokbahnen mit. Je Fahrt gibt es hier eine Bildstrecke – und wenn ich gefilmt habe, auch das Video.</p>
+  </header>
+  {{GLEIS}}
+</div>
+
+<section class="section wrap">
+  <gallery-grid feed="{{FEED_GALLERY}}" gallery="{{G_DAMPF}}" filter="on" teaser="on" detail-url="/fahrt" param="fahrt"></gallery-grid>
+</section>
+
+<section class="section wrap" style="padding-top:0">
+  <div class="section-head"><h2>Berichte</h2><a class="mehr" href="/blog">Alle Beiträge →</a></div>
+  <blog-list feed="{{FEED_BLOG}}" post-url="/post" tags="dampflokbahn" page-size="6" credit="off"></blog-list>
+</section>

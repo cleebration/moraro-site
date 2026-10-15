@@ -1,0 +1,82 @@
+<!--meta
+{
+  "title": "MoRaRo – ModelRailRoad in H0",
+  "description": "MoRaRo ist meine Modellbahn in H0: eine fiktive Anlage mit Loks und Zügen aus allen Epochen und Ländern – dazu Fahrten mit historischen Dampflokbahnen.",
+  "out": "index.html",
+  "canonical": "/",
+  "scripts": "<script type=\"module\" src=\"/assets/blog-widget.js\"></script>\n<script type=\"module\" src=\"/assets/gallery-widget.js\"></script>"
+}
+-->
+
+<div class="dark">
+  <section class="hero wrap">
+    <div class="hero__grid">
+      <div>
+        <p class="kicker">Spur H0 · 1:87 · Märklin K-Gleis</p>
+        <h1>Alle Epochen.<br />Alle Länder.<br /><span class="hl">Eine Anlage.</span></h1>
+        <p class="lead">MoRaRo steht für <strong>Mo</strong>del<strong>Ra</strong>il<strong>Ro</strong>ad. Hier entsteht meine fiktive H0-Anlage – mit allem, was mir gefällt: von der Dampflok bis zum Big Boy aus den USA. Dazu Fotos und Videos von Fahrten mit echten Dampflokbahnen.</p>
+        <div class="btn-row">
+          <a class="btn btn--rot" href="/anlage">Zur Anlage</a>
+          <a class="btn btn--ghost" href="/blog">Baubericht lesen</a>
+        </div>
+      </div>
+      <div class="hero__plakette"><img src="{{IMG_PLAKETTE}}" alt="MoRaRo-Plakette: Drehscheibe mit Lokrädern" width="420" height="420" /></div>
+    </div>
+  </section>
+  {{GLEIS}}
+</div>
+
+<section class="section wrap" aria-labelledby="bereiche">
+  <p class="kicker">Abfahrt</p>
+  <h2 id="bereiche" class="section-head" style="display:block;font-size:clamp(1.8rem,4vw,2.6rem)">Drei Gleise</h2>
+  <div class="gleise">
+    <a class="gleis-karte" href="/anlage">
+      <div class="gleis-karte__kopf"><span class="gleisnr">1</span><span>Bau</span></div>
+      <div class="gleis-karte__body">
+        <h3>Meine Anlage</h3>
+        <p>400 × 200 cm auf drei Ebenen: Hauptbahnhof über die ganze Diagonale, Bahnbetriebswerk mit Drehscheibe, Schattenbahnhöfe und eine Paradestrecke.</p>
+        <span class="pfeil">Zum Gleisplan →</span>
+      </div>
+    </a>
+    <a class="gleis-karte" href="/fahrzeuge">
+      <div class="gleis-karte__kopf"><span class="gleisnr">2</span><span>Loks &amp; Wagen</span></div>
+      <div class="gleis-karte__body">
+        <h3>Rollendes Material</h3>
+        <p>Loks und Wagen aus allen Epochen und Ländern – auch aus den USA. Mit Steckbrief zu jedem Fahrzeug.</p>
+        <span class="pfeil">Zum Fuhrpark →</span>
+      </div>
+    </a>
+    <a class="gleis-karte" href="/dampflokbahnen">
+      <div class="gleis-karte__kopf"><span class="gleisnr">3</span><span>Unterwegs</span></div>
+      <div class="gleis-karte__body">
+        <h3>Dampflokbahnen</h3>
+        <p>Hin und wieder fahre ich mit historischen Dampflokbahnen mit – hier sind die Fotos und Videos davon.</p>
+        <span class="pfeil">Zu den Fahrten →</span>
+      </div>
+    </a>
+  </div>
+</section>
+
+<section class="section section--tight dark">
+  <div class="wrap">
+    <p class="kicker">Steckbrief</p>
+    <dl class="steckbrief">
+      <div><dt>Spur</dt><dd>H0 · 1:87</dd></div>
+      <div><dt>Gleis</dt><dd>Märklin K-Gleis</dd></div>
+      <div><dt>Fläche</dt><dd>400 × 200 cm</dd></div>
+      <div><dt>Ebenen</dt><dd>3 (0 / +6 / +12 cm)</dd></div>
+      <div><dt>Steuerung</dt><dd>Märklin CS3 · iTrain</dd></div>
+      <div><dt>Thema</dt><dd>fiktiv · alle Epochen &amp; Länder</dd></div>
+    </dl>
+  </div>
+</section>
+
+<section class="section wrap">
+  <div class="section-head"><h2>Neu im Blog</h2><a class="mehr" href="/blog">Alle Beiträge →</a></div>
+  <blog-list feed="{{FEED_BLOG}}" post-url="/post" page-size="3" credit="off"></blog-list>
+</section>
+
+<section class="section wrap" style="padding-top:0">
+  <div class="section-head"><h2>Aus der Galerie</h2><a class="mehr" href="/galerie">Alle Bilder →</a></div>
+  <gallery-grid feed="{{FEED_GALLERY}}" limit="6" detail-url="/bild" param="bild"></gallery-grid>
+</section>

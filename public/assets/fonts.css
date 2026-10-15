@@ -1,0 +1,11 @@
+/* Schriften von MoRaRo – vom eigenen Server (keine Verbindung zu Google Fonts).
+   Oswald (Logo, Überschriften) · Barlow (Text) · IBM Plex Mono (technische Daten).
+   Alle SIL Open Font License 1.1, Lizenztexte daneben. Quelle: @fontsource 5.3.0 (latin). */
+@font-face { font-family: "Oswald"; font-style: normal; font-display: swap; font-weight: 500; src: url(/assets/fonts/oswald-latin-500-normal.woff2) format("woff2"); }
+@font-face { font-family: "Oswald"; font-style: normal; font-display: swap; font-weight: 600; src: url(/assets/fonts/oswald-latin-600-normal.woff2) format("woff2"); }
+@font-face { font-family: "Oswald"; font-style: normal; font-display: swap; font-weight: 700; src: url(/assets/fonts/oswald-latin-700-normal.woff2) format("woff2"); }
+@font-face { font-family: "Barlow"; font-style: normal; font-display: swap; font-weight: 400; src: url(/assets/fonts/barlow-latin-400-normal.woff2) format("woff2"); }
+@font-face { font-family: "Barlow"; font-style: normal; font-display: swap; font-weight: 500; src: url(/assets/fonts/barlow-latin-500-normal.woff2) format("woff2"); }
+@font-face { font-family: "Barlow"; font-style: normal; font-display: swap; font-weight: 600; src: url(/assets/fonts/barlow-latin-600-normal.woff2) format("woff2"); }
+@font-face { font-family: "IBM Plex Mono"; font-style: normal; font-display: swap; font-weight: 400; src: url(/assets/fonts/ibm-plex-mono-latin-400-normal.woff2) format("woff2"); }
+@font-face { font-family: "IBM Plex Mono"; font-style: normal; font-display: swap; font-weight: 500; src: url(/assets/fonts/ibm-plex-mono-latin-500-normal.woff2) format("woff2"); }

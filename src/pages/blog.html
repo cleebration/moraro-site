@@ -1,0 +1,21 @@
+<!--meta
+{
+  "title": "Blog | MoRaRo",
+  "description": "Baubericht und Neuigkeiten von der MoRaRo-Anlage und von Fahrten mit Dampflokbahnen.",
+  "nav": "blog",
+  "out": "blog.html",
+  "scripts": "<script type=\"module\" src=\"/assets/blog-widget.js\"></script>"
+}
+-->
+
+<div class="dark">
+  <header class="page-head wrap">
+    <p class="kicker">Baubericht &amp; Neuigkeiten</p>
+    <h1>Blog</h1>
+  </header>
+  {{GLEIS}}
+</div>
+
+<section class="section wrap">
+  <blog-list feed="{{FEED_BLOG}}" post-url="/post" page-size="9" credit="off"></blog-list>
+</section>
