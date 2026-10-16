@@ -247,3 +247,9 @@ p { margin: 0 0 1em; }
 .mb-verz { margin: 0; padding-left: 1.1rem; display: grid; gap: .5rem; }
 @media (max-width: 860px) { .mb-split { grid-template-columns: 1fr; } }
 @media (max-width: 400px) { .mb-grid { grid-template-columns: 1fr; } }
+
+.mb-leer { padding: 1.5rem; border: 1px dashed currentColor; border-radius: 8px; opacity: .8; text-align: center; }
+.mb-reset { font: inherit; font-size: .9rem; background: none; border: 1px solid currentColor; border-radius: 6px; padding: .3rem .8rem; cursor: pointer; margin-left: .5rem; }
+
+/* hidden-Attribut muss display:flex der Karten schlagen */
+.mb-karte[hidden], .mb-leer[hidden], .mb-reset[hidden] { display: none !important; }

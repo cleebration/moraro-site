@@ -132,7 +132,7 @@ const GLEIS = '<div class="gleis" aria-hidden="true"></div>';
 /* Verzeichnis Museumsbahnen (Seite /museumsbahnen).
    Quelle: src/data/museumsbahnen.json – Export aus dem Dampfbahn-Register (claude.ai).
    Bewusst ohne fremde Bilder (Datenschutz): nur Text und Links. */
-const LAENDER = { AT: "Österreich", DE: "Deutschland", CH: "Schweiz", CZ: "Tschechien", PL: "Polen", IT: "Italien", HU: "Ungarn", SK: "Slowakei", SI: "Slowenien", International: "International" };
+const LAENDER = { AT: "Österreich", DE: "Deutschland", CH: "Schweiz", IT: "Italien", CZ: "Tschechien", PL: "Polen", SK: "Slowakei", HU: "Ungarn", SI: "Slowenien", International: "International" };
 const esc = (t) => String(t ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 const datum = (d) => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(d ?? ""); return m ? `${m[3]}.${m[2]}.${m[1]}` : ""; };
 async function museumsbahnen() {
@@ -140,7 +140,7 @@ async function museumsbahnen() {
   if (!existsSync(datei)) return { MUSEUMSBAHNEN: "", MB_STAND: "", MB_ANZAHL: "0", MB_FILTER: "" };
   const { stand, eintraege } = JSON.parse(await read(datei));
   const ueber = (e) => e.kategorie === "Übersicht/Verband";
-  const liste = eintraege.filter((e) => !ueber(e)).sort((a, b) => (a.land + a.titel).localeCompare(b.land + b.titel, "de"));
+  const liste = eintraege.filter((e) => !ueber(e)).sort((a, b) => { const r = Object.keys(LAENDER); return (r.indexOf(a.land) - r.indexOf(b.land)) || a.titel.localeCompare(b.titel, "de"); });
   const karte = (e) => {
     let host = ""; try { host = new URL(e.link).hostname.replace(/^www\./, ""); } catch {}
     return `<article class="mb-karte" data-land="${esc(e.land)}" data-kat="${esc(e.kategorie)}" data-dampf="${esc(e.dampf)}">
@@ -153,7 +153,7 @@ async function museumsbahnen() {
 </article>`;
   };
   const verz = eintraege.filter(ueber).map((e) => `<li><a href="${esc(e.link)}" rel="noopener" target="_blank">${esc(e.titel)}</a> – ${esc(e.beschreibung)}</li>`).join("\n");
-  const laender = [...new Set(liste.map((e) => e.land))];
+  const laender = Object.keys(LAENDER).filter((l) => liste.some((e) => e.land === l));
   const kats = [...new Set(liste.map((e) => e.kategorie))].sort((a, b) => a.localeCompare(b, "de"));
   const opt = (v, t) => `<option value="${esc(v)}">${esc(t)}</option>`;
   const filter = `<div class="mb-filter" role="search">
