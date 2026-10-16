@@ -1,0 +1,39 @@
+<!--meta
+{
+  "title": "Museumsbahnen | MoRaRo",
+  "description": "Verzeichnis von Museumsbahnen, Eisenbahnmuseen und Dampf-Sonderfahrten in Österreich, Deutschland und den Nachbarländern – mit Adresse, Link und aktuellen Terminen.",
+  "nav": "museumsbahnen",
+  "out": "museumsbahnen.html",
+  "scripts": "<script type=\"module\" src=\"/assets/museumsbahnen.js\"></script>"
+}
+-->
+
+<div class="dark">
+  <header class="page-head wrap">
+    <p class="kicker">Gleis 4 · Verzeichnis</p>
+    <h1>Museumsbahnen</h1>
+    <p class="lead">Wo heute noch Dampf aufsteigt: Museumsbahnen, Eisenbahnmuseen und Sonderfahrten in Österreich, Deutschland und den Nachbarländern. Jeder Eintrag nennt Adresse, Website und – wo bekannt – die nächsten Termine.</p>
+  </header>
+  {{GLEIS}}
+</div>
+
+<section class="section wrap">
+  <div class="section-head"><h2>{{MB_ANZAHL}} Ziele</h2><p class="mb-stand">Geprüft am {{MB_STAND}} auf den Originalseiten. Termine bitte vor der Fahrt beim Betreiber bestätigen.</p></div>
+  {{MB_FILTER}}
+  {{MUSEUMSBAHNEN}}
+</section>
+
+<section class="section wrap mb-unten" style="padding-top:0">
+  <div class="mb-split">
+    <div>
+      <h2>Eintrag fehlt oder ist veraltet?</h2>
+      <p>Du betreibst eine Museumsbahn oder kennst eine, die hier fehlt? Schreib mir Name, Adresse, Website und gern die nächsten Termine an <a href="mailto:{{MAIL}}">{{MAIL}}</a>. Betreiber können mir auch laufend ihre Fahrtage schicken – ich trage sie ein.</p>
+    </div>
+    <div>
+      <h2>Weitere Verzeichnisse</h2>
+      <ul class="mb-verz">
+{{MB_VERZEICHNISSE}}
+      </ul>
+    </div>
+  </div>
+</section>

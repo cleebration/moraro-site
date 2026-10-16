@@ -218,3 +218,32 @@ p { margin: 0 0 1em; }
 .site-foot__brand img { width: 88px; height: 88px; flex: none; }
 .site-foot__mail { font-family: var(--font-mono); font-size: .95rem; }
 .site-foot__credit { margin: 1rem 0 .4rem; }
+
+/* ---------- Museumsbahnen (Verzeichnis) ---------- */
+.mb-stand { margin: 0; color: var(--schotter); font-size: .95rem; max-width: 60ch; }
+.mb-filter { display: flex; flex-wrap: wrap; gap: .75rem 1rem; align-items: flex-end; margin-bottom: 1.5rem; }
+.mb-filter label { display: flex; flex-direction: column; gap: .25rem; font-family: var(--font-mono); font-size: .75rem; letter-spacing: .1em; text-transform: uppercase; color: var(--schotter); }
+.mb-filter select { font: inherit; font-family: var(--font-body); font-size: 1rem; letter-spacing: 0; text-transform: none; color: var(--russ); background: var(--weiss); border: 1px solid var(--linie); border-radius: var(--radius); padding: .5rem .7rem; min-height: 44px; }
+.mb-zahl { margin: 0 0 .6rem auto; font-family: var(--font-mono); font-size: .85rem; color: var(--schotter); }
+.mb-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1rem; }
+.mb-karte { background: var(--weiss); border: 1px solid var(--linie); border-top: 4px solid var(--russ); border-radius: var(--radius); padding: 1.1rem 1.2rem 1.2rem; display: flex; flex-direction: column; gap: .5rem; min-width: 0; }
+.mb-karte h3 { font-size: 1.45rem; margin: .1rem 0 0; overflow-wrap: anywhere; }
+.mb-karte p { margin: 0; }
+.mb-karte__kopf { display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; }
+.mb-land, .mb-kat, .mb-dampf { font-family: var(--font-mono); font-size: .72rem; letter-spacing: .06em; text-transform: uppercase; padding: .15rem .45rem; border-radius: 3px; }
+.mb-land { background: var(--russ); color: var(--creme); }
+.mb-kat { border: 1px solid var(--linie); color: var(--schotter); }
+.mb-dampf { border: 1px dashed var(--linie); color: var(--schotter); }
+.mb-dampf--regelmaig { background: var(--rot); border-color: var(--rot); color: var(--weiss); }
+.mb-dampf--zeitweise { border: 1px solid var(--rot); color: var(--rot); }
+.mb-region { color: var(--schotter); font-size: .92rem; margin-top: -.3rem !important; }
+.mb-daten { display: grid; grid-template-columns: auto 1fr; gap: .2rem .8rem; margin: .2rem 0 0; font-size: .95rem; }
+.mb-daten dt { font-family: var(--font-mono); font-size: .72rem; letter-spacing: .08em; text-transform: uppercase; color: var(--schotter); padding-top: .2rem; }
+.mb-daten dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.mb-aktuell { border-left: 3px solid var(--messing); background: var(--papier); padding: .5rem .7rem; font-size: .93rem; margin-top: auto !important; }
+.mb-aktuell span { display: block; font-family: var(--font-mono); font-size: .7rem; letter-spacing: .08em; text-transform: uppercase; color: var(--messing-dk); }
+.mb-split { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; border-top: 1px solid var(--linie); padding-top: 2rem; }
+.mb-split h2 { font-size: 1.6rem; }
+.mb-verz { margin: 0; padding-left: 1.1rem; display: grid; gap: .5rem; }
+@media (max-width: 860px) { .mb-split { grid-template-columns: 1fr; } }
+@media (max-width: 400px) { .mb-grid { grid-template-columns: 1fr; } }

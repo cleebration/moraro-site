@@ -128,6 +128,49 @@ function fontLinks() {
    Reines CSS (.gleis), damit es bei jeder Breite sauber kachelt. */
 const GLEIS = '<div class="gleis" aria-hidden="true"></div>';
 
+
+/* Verzeichnis Museumsbahnen (Seite /museumsbahnen).
+   Quelle: src/data/museumsbahnen.json – Export aus dem Dampfbahn-Register (claude.ai).
+   Bewusst ohne fremde Bilder (Datenschutz): nur Text und Links. */
+const LAENDER = { AT: "Österreich", DE: "Deutschland", CH: "Schweiz", CZ: "Tschechien", PL: "Polen", IT: "Italien", HU: "Ungarn", SK: "Slowakei", SI: "Slowenien", International: "International" };
+const esc = (t) => String(t ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+const datum = (d) => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(d ?? ""); return m ? `${m[3]}.${m[2]}.${m[1]}` : ""; };
+async function museumsbahnen() {
+  const datei = join(SRC, "data", "museumsbahnen.json");
+  if (!existsSync(datei)) return { MUSEUMSBAHNEN: "", MB_STAND: "", MB_ANZAHL: "0", MB_FILTER: "" };
+  const { stand, eintraege } = JSON.parse(await read(datei));
+  const ueber = (e) => e.kategorie === "Übersicht/Verband";
+  const liste = eintraege.filter((e) => !ueber(e)).sort((a, b) => (a.land + a.titel).localeCompare(b.land + b.titel, "de"));
+  const karte = (e) => {
+    let host = ""; try { host = new URL(e.link).hostname.replace(/^www\./, ""); } catch {}
+    return `<article class="mb-karte" data-land="${esc(e.land)}" data-kat="${esc(e.kategorie)}" data-dampf="${esc(e.dampf)}">
+  <div class="mb-karte__kopf"><span class="mb-land">${esc(e.land)}</span><span class="mb-kat">${esc(e.kategorie)}</span><span class="mb-dampf mb-dampf--${esc(e.dampf.normalize("NFD").replace(/[^a-z]/g, ""))}">Dampf: ${esc(e.dampf)}</span></div>
+  <h3>${esc(e.titel)}</h3>
+  <p class="mb-region">${esc([e.region, LAENDER[e.land]].filter(Boolean).join(", "))}</p>
+  <p>${esc(e.beschreibung)}</p>
+  <dl class="mb-daten">${e.adresse ? `<dt>Adresse</dt><dd>${esc(e.adresse)}</dd>` : ""}${e.link ? `<dt>Web</dt><dd><a href="${esc(e.link)}" rel="noopener" target="_blank">${esc(host)}</a></dd>` : ""}</dl>
+  ${e.aktuelles ? `<p class="mb-aktuell"><span>Aktuell · Stand ${datum(e.geprueftAm)}</span>${esc(e.aktuelles)}</p>` : ""}
+</article>`;
+  };
+  const verz = eintraege.filter(ueber).map((e) => `<li><a href="${esc(e.link)}" rel="noopener" target="_blank">${esc(e.titel)}</a> – ${esc(e.beschreibung)}</li>`).join("\n");
+  const laender = [...new Set(liste.map((e) => e.land))];
+  const kats = [...new Set(liste.map((e) => e.kategorie))].sort((a, b) => a.localeCompare(b, "de"));
+  const opt = (v, t) => `<option value="${esc(v)}">${esc(t)}</option>`;
+  const filter = `<div class="mb-filter" role="search">
+  <label>Land<select id="mb-land"><option value="">Alle</option>${laender.map((l) => opt(l, LAENDER[l] ?? l)).join("")}</select></label>
+  <label>Art<select id="mb-kat"><option value="">Alle</option>${kats.map((k) => opt(k, k)).join("")}</select></label>
+  <label>Dampf<select id="mb-dampf"><option value="">Alle</option>${["regelmäßig", "zeitweise", "nein", "unbekannt"].map((d) => opt(d, d)).join("")}</select></label>
+  <p class="mb-zahl" id="mb-zahl" aria-live="polite">${liste.length} Einträge</p>
+</div>`;
+  return {
+    MUSEUMSBAHNEN: `<div class="mb-grid" id="mb-grid">${liste.map(karte).join("\n")}</div>`,
+    MB_VERZEICHNISSE: verz,
+    MB_STAND: datum(stand),
+    MB_ANZAHL: String(liste.length),
+    MB_FILTER: filter
+  };
+}
+
 const globals = {
   SITE_URL: config.siteUrl,
   MAIL: config.mail,
@@ -143,7 +186,8 @@ const globals = {
   IMG_LOGO: image(config.images.logo),
   IMG_PLAKETTE: image(config.images.plakette),
   IMG_OG: image(config.images.og),
-  GLEIS
+  GLEIS,
+  ...(await museumsbahnen())
 };
 
 const layout = await read(join(SRC, "layout.html"));
