@@ -171,6 +171,42 @@ async function museumsbahnen() {
   };
 }
 
+/* Verzeichnis Modellbahnanlagen H0 (Seite /modellbahnanlagen).
+   Quelle: src/data/modellbahnanlagen.json – Recherche Claude + Facebook-Pages von Chris, je Eintrag auf der Betreiberseite geprüft.
+   Gleiches Kartenlayout und Filter-Skript wie /museumsbahnen (Ids mb-land, mb-kat). */
+async function modellbahnanlagen() {
+  const datei = join(SRC, "data", "modellbahnanlagen.json");
+  if (!existsSync(datei)) return { MODELLBAHNANLAGEN: "", MA_STAND: "", MA_ANZAHL: "0", MA_FILTER: "" };
+  const { stand, eintraege } = JSON.parse(await read(datei));
+  const r = Object.keys(LAENDER);
+  const liste = eintraege.slice().sort((a, b) => (r.indexOf(a.land) - r.indexOf(b.land)) || a.titel.localeCompare(b.titel, "de"));
+  const karte = (e) => {
+    let host = ""; try { host = new URL(e.link).hostname.replace(/^www\./, ""); } catch {}
+    return `<article class="mb-karte" data-land="${esc(e.land)}" data-kat="${esc(e.kategorie)}">
+  <div class="mb-karte__kopf"><span class="mb-land">${esc(e.land)}</span><span class="mb-kat">${esc(e.kategorie)}</span><span class="mb-dampf">Spur ${esc(e.spuren || "H0")}</span></div>
+  <h3>${esc(e.titel)}</h3>
+  <p class="mb-region">${esc([...new Set([e.ort, e.region, LAENDER[e.land]].filter(Boolean))].join(", "))}</p>
+  <p>${esc(e.beschreibung)}</p>
+  <dl class="mb-daten">${e.adresse ? `<dt>Adresse</dt><dd>${esc(e.adresse)}</dd>` : ""}${e.link ? `<dt>Web</dt><dd><a href="${esc(e.link)}" rel="noopener" target="_blank">${esc(host)}</a></dd>` : ""}</dl>
+  ${e.aktuelles ? `<p class="mb-aktuell"><span>Öffnung · Stand ${datum(e.geprueftAm)}</span>${esc(e.aktuelles)}</p>` : ""}
+</article>`;
+  };
+  const laender = r.filter((l) => liste.some((e) => e.land === l));
+  const kats = [...new Set(liste.map((e) => e.kategorie))].sort((a, b) => a.localeCompare(b, "de"));
+  const opt = (v, t) => `<option value="${esc(v)}">${esc(t)}</option>`;
+  const filter = `<div class="mb-filter" role="search">
+  <label>Land<select id="mb-land"><option value="">Alle</option>${laender.map((l) => opt(l, LAENDER[l] ?? l)).join("")}</select></label>
+  <label>Art<select id="mb-kat"><option value="">Alle</option>${kats.map((k) => opt(k, k)).join("")}</select></label>
+  <p class="mb-zahl" id="mb-zahl" aria-live="polite">${liste.length} Einträge</p>
+</div>`;
+  return {
+    MODELLBAHNANLAGEN: `<div class="mb-grid" id="mb-grid">${liste.map(karte).join("\n")}</div>`,
+    MA_STAND: datum(stand),
+    MA_ANZAHL: String(liste.length),
+    MA_FILTER: filter
+  };
+}
+
 const globals = {
   SITE_URL: config.siteUrl,
   MAIL: config.mail,
@@ -187,7 +223,8 @@ const globals = {
   IMG_PLAKETTE: image(config.images.plakette),
   IMG_OG: image(config.images.og),
   GLEIS,
-  ...(await museumsbahnen())
+  ...(await museumsbahnen()),
+  ...(await modellbahnanlagen())
 };
 
 const layout = await read(join(SRC, "layout.html"));

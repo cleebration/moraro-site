@@ -15,7 +15,7 @@ const seiten = readdirSync(new URL("../src/pages/", import.meta.url)).filter((f)
 for (const s of seiten) {
   const html = readFileSync(new URL(s, PUB), "utf8");
   assert.ok(!/\{\{\w+\}\}/.test(html), `${s}: offener Platzhalter`);
-  for (const nav of ["/anlage", "/fahrzeuge", "/dampflokfahrten", "/museumsbahnen", "/blog", "/galerie"]) assert.ok(html.includes(`href="${nav}"`), `${s}: Menü ${nav} fehlt`);
+  for (const nav of ["/anlage", "/fahrzeuge", "/dampflokfahrten", "/museumsbahnen", "/modellbahnanlagen", "/blog", "/galerie"]) assert.ok(html.includes(`href="${nav}"`), `${s}: Menü ${nav} fehlt`);
   const text = html.replace(/<[^>]+>/g, " ");
   assert.ok(!/\bHO\b|HØ/.test(text), `${s}: Schreibweise H0 verletzt`);
   for (const m of html.matchAll(/(?:src|href)="(\/assets\/[^"#?]+)"/g)) {
@@ -27,7 +27,7 @@ for (const s of seiten) {
 }
 ok(true, `${seiten.length} Seiten: keine Platzhalter, Menü komplett, Assets da, Feeds richtig, „H0“`);
 
-for (const [s, nav] of [["anlage.html", "anlage"], ["fahrzeuge.html", "fahrzeuge"], ["dampflokfahrten.html", "dampflokfahrten"], ["museumsbahnen.html", "museumsbahnen"], ["blog.html", "blog"], ["galerie.html", "galerie"]]) {
+for (const [s, nav] of [["anlage.html", "anlage"], ["fahrzeuge.html", "fahrzeuge"], ["dampflokfahrten.html", "dampflokfahrten"], ["museumsbahnen.html", "museumsbahnen"], ["modellbahnanlagen.html", "modellbahnanlagen"], ["blog.html", "blog"], ["galerie.html", "galerie"]]) {
   const html = readFileSync(new URL(s, PUB), "utf8");
   assert.ok(html.includes(`data-nav="${nav}" aria-current="page"`), `${s}: aktiver Menüpunkt`);
 }
@@ -35,6 +35,9 @@ ok(true, "aktiver Menüpunkt auf allen Bereichsseiten");
 
 const mb = readFileSync(new URL("museumsbahnen.html", PUB), "utf8");
 ok((mb.match(/class="mb-karte"/g) || []).length >= 10 && !/<img[^>]+src="https?:/.test(mb), "Museumsbahnen: Verzeichnis gebaut, keine fremden Bilder");
+
+const ma = readFileSync(new URL("modellbahnanlagen.html", PUB), "utf8");
+ok((ma.match(/class="mb-karte"/g) || []).length >= 10 && !/<img[^>]+src="https?:/.test(ma), "Modellbahnanlagen: Verzeichnis gebaut, keine fremden Bilder");
 
 const idx = readFileSync(new URL("index.html", PUB), "utf8");
 ok(idx.includes("cleebration-credit"), "Credit-Baustein „Website von cleebration“ im Fuß");

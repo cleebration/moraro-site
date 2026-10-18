@@ -1,0 +1,37 @@
+<!--meta
+{
+  "title": "Modellbahnanlagen H0 | MoRaRo",
+  "description": "Verzeichnis besuchbarer Modellbahnanlagen in Spur H0 in Österreich, Deutschland, der Schweiz und den Nachbarländern – Schauanlagen, Museen und Clubanlagen mit Adresse, Link und Öffnungszeiten.",
+  "nav": "modellbahnanlagen",
+  "out": "modellbahnanlagen.html",
+  "scripts": "<script type=\"module\" src=\"/assets/museumsbahnen.js\"></script>"
+}
+-->
+
+<div class="dark">
+  <header class="page-head wrap">
+    <p class="kicker">Gleis 5 · Verzeichnis</p>
+    <h1>Modellbahnanlagen H0</h1>
+    <p class="lead">Modellbahn zum Anschauen: Schauanlagen, Museen und Clubanlagen in Spur H0 – also im Maßstab 1:87 wie meine eigene Anlage. Jeder Eintrag nennt Adresse, Website und – wo bekannt – die Öffnungszeiten.</p>
+  </header>
+  {{GLEIS}}
+</div>
+
+<section class="section wrap">
+  <div class="section-head"><h2>{{MA_ANZAHL}} Anlagen</h2><p class="mb-stand">Geprüft am {{MA_STAND}} auf den Originalseiten. Öffnungszeiten bitte vor dem Besuch beim Betreiber bestätigen.</p></div>
+  {{MA_FILTER}}
+  {{MODELLBAHNANLAGEN}}
+</section>
+
+<section class="section wrap mb-unten" style="padding-top:0">
+  <div class="mb-split">
+    <div>
+      <h2>Anlage fehlt oder ist veraltet?</h2>
+      <p>Du betreibst eine H0-Anlage, die man besuchen kann, oder kennst eine, die hier fehlt? Schreib mir Name, Adresse, Website und die Öffnungszeiten an <a href="mailto:{{MAIL}}">{{MAIL}}</a> – ich trage sie ein.</p>
+    </div>
+    <div>
+      <h2>Zu den Museumsbahnen</h2>
+      <p>Lieber das Vorbild in Echt? Im Verzeichnis <a href="/museumsbahnen">Museumsbahnen</a> stehen Museumsbahnen, Eisenbahnmuseen und Dampf-Sonderfahrten.</p>
+    </div>
+  </div>
+</section>
