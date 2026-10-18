@@ -9,10 +9,10 @@ Marke: Branding-Kit v1, `1! claude/04 Templates/Branding/MoRaRo` (README + BRAND
 
 | Adresse | Inhalt | Quelle |
 |---|---|---|
-| `/` | Plakette, „Drei Gleise“ (Anlage, Fahrzeuge, Dampflokbahnen), Steckbrief, neueste Beiträge, Galerie-Auszug | Blog- + Gallery-Hub |
+| `/` | Plakette, „Drei Gleise“ (Anlage, Fahrzeuge, Dampflokfahrten), Steckbrief, neueste Beiträge, Galerie-Auszug | Blog- + Gallery-Hub |
 | `/anlage` | Plan, Steckbrief, Bereiche, Baubericht (Blog-Tag `anlage`), Fotos (Galerie `moraro-anlage`) | hier + Hubs |
 | `/fahrzeuge` · `/fahrzeug?fahrzeug=<slug>` | Loks und Wagen mit Steckbrief | Galerie `moraro-fahrzeuge` |
-| `/dampflokbahnen` · `/fahrt?fahrt=<slug>` | je Fahrt Bildstrecke/Video, Berichte (Blog-Tag `dampflokbahn`) | Galerie `moraro-dampflokbahnen` + Blog |
+| `/dampflokfahrten` · `/fahrt?fahrt=<slug>` | Einleitung + je Fahrt eine Galerie (Kurztext auf der Karte, Einleitungstext `description` + Bildstrecke/Video auf /fahrt), Berichte (Blog-Tag `dampflokbahn`) | Galerie `moraro-dampflokbahnen` + Blog |
 | `/blog` · `/post?post=<slug>` | Baubericht und Neuigkeiten | Blog-Hub |
 | `/galerie` · `/bild?bild=<slug>` | alle Fotos und Videos | Gallery-Hub |
 | `/impressum` · `/datenschutz` | Medieninhaber Chris H. Leeb | hier |
@@ -23,7 +23,7 @@ Solange der Hub für `moraro` noch nichts hat (404), zeigen die Module „Keine 
 ## Inhalte pflegen
 
 Im **Cockpit (Redaktion)**: Zeile „MoRaRo“ (Key `moraro`, Blog + Galerie).
-* Blog: Beitrag mit Website „MoRaRo“; Tag `anlage` → erscheint auch auf /anlage, Tag `dampflokbahn` → auf /dampflokbahnen.
+* Blog: Beitrag mit Website „MoRaRo“; Tag `anlage` → erscheint auch auf /anlage, Tag `dampflokbahn` → auf /dampflokfahrten (alte Adresse /dampflokbahnen leitet 301 weiter).
 * Galerie: Eintrag in `moraro-fahrzeuge`, `moraro-dampflokbahnen` oder `moraro-anlage`.
   Bildstrecke = mehrere Bilder (`images`), Video = YouTube-/Vimeo-Link. Tags als Filter
   (z. B. `dampflok`, `diesellok`, `elok`, `wagen`, Länder wie `usa`, `oesterreich`).

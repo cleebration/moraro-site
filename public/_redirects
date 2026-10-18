@@ -14,7 +14,9 @@
 /fahrzeugpark   /fahrzeuge        301
 /loks           /fahrzeuge        301
 /rollmaterial   /fahrzeuge        301
-/dampf          /dampflokbahnen   301
-/dampfbahnen    /dampflokbahnen   301
+/dampf          /dampflokfahrten  301
+/dampfbahnen    /dampflokfahrten  301
+/dampflokbahnen /dampflokfahrten  301
+/dampflokbahnen.html /dampflokfahrten 301
 /gallerie       /galerie          301
 /post/*         /blog             301

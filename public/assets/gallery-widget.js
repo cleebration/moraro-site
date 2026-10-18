@@ -731,7 +731,12 @@ class GalleryDetail extends HTMLElement {
         ${it.translated === false ? `<div class="detail__pending">${esc(t.uebersetzungFolgt)}</div>` : ""}
         <p class="detail__meta">${esc([metaLine(it, this._sprache), it.galleryLabel].filter(Boolean).join(" · "))}</p>
         ${galerie
-          ? (it.teaser ? `<div class="detail__body"><p>${esc(it.teaser)}</p></div>` : "")
+          /* PATCH moraro: einleitung="voll" an <gallery-detail> zeigt im Galerie-Modus
+             den ganzen Einleitungstext (`description`) über der Bildstrecke,
+             sonst wie bisher den Kurztext (Chris, 18.10.2026: Dampflokfahrten). */
+          ? (this.getAttribute("einleitung") === "voll" && it.description
+              ? `<div class="detail__body">${it.description}</div>`
+              : (it.teaser ? `<div class="detail__body"><p>${esc(it.teaser)}</p></div>` : ""))
           : (it.description ? `<div class="detail__body">${it.description}</div>` : "")}
         ${bilder.length > 1 ? `
           <div class="strip" role="list" aria-label="${esc(t.bilder)}">
