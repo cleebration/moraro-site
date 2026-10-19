@@ -3,5 +3,11 @@
     "skip": "Zum Inhalt springen",
     "mainnav": "Hauptnavigation",
     "home": "Startseite"
+  },
+  "nav": {
+    "newsletter": "Newsletter"
+  },
+  "newsletter": {
+    "title": "Newsletter"
   }
 }
