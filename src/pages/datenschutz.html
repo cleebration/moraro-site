@@ -18,8 +18,9 @@
          Beschreibt genau das, was diese Website technisch tut: Hosting bei
          Cloudflare, zwei JSON-Feeds samt Bildern von Vercel (die cleebration-Hubs),
          Schriften vom eigenen Server, Videos (YouTube/Vimeo) nur auf den
-         Detailseiten von Einträgen mit Video, und erst nach Klick. Kein Tracking, keine Cookies,
-         kein Newsletter, kein Formular.
+         Detailseiten von Einträgen mit Video, und erst nach Klick. Kein Tracking, keine Cookies.
+         Seit 20.10.2026: Formular „Melden“ auf /museumsbahnen und /modellbahnanlagen →
+         Redaktion (Cloudflare Worker, KV), abgeschlossene Meldungen nach 180 Tagen gelöscht.
 
          Videos: Zwei-Klick-Lösung im Galerie-Modul (PATCH moraro, 15.10.2026) –
          der Player des Anbieters lädt erst nach Klick auf „Video abspielen“.
@@ -102,6 +103,28 @@
         jeder Newsletter-E-Mail oder formlos per E-Mail.
       </p>
 
+      <h2 id="meldungen">Meldungen für die Verzeichnisse</h2>
+    <p>
+      Über das Formular „Melden“ auf den Seiten Museumsbahnen und
+      Modellbahnanlagen können Sie neue Einträge oder Änderungen melden. Dabei
+      werden Ihre Angaben zum Eintrag, Ihre E-Mail-Adresse, Ihr Name (falls
+      angegeben), ob Sie Betreiber oder Besucher sind, und der Zeitpunkt
+      verarbeitet. Zum Schutz vor Missbrauch wird aus Ihrer IP-Adresse ein
+      Kurzwert gebildet, der nach zwei Tagen gelöscht wird; die IP-Adresse
+      selbst wird nicht gespeichert.
+    </p>
+    <p>
+      Zweck ist die Prüfung der Meldung und gegebenenfalls eine Rückfrage per
+      E-Mail. Name und E-Mail-Adresse werden nicht veröffentlicht; ins
+      Verzeichnis übernommen werden nur die Angaben zur Bahn bzw. Anlage.
+      Rechtsgrundlage ist Ihre Einwilligung (Art. 6 Abs. 1 lit. a DSGVO), die
+      Sie jederzeit per E-Mail an <a href="mailto:{{MAIL}}">{{MAIL}}</a>
+      widerrufen können. Gespeichert wird bei Cloudflare, Inc. (siehe
+      Hosting) in der Redaktionsumgebung dieser Website. Abgeschlossene
+      Meldungen werden nach 180 Tagen gelöscht, E-Mails mit Rückfragen
+      verbleiben im Postfach von {{MAIL}} (Google Workspace).
+    </p>
+
       <h2>Externe Links</h2>
     <p>
       Verweise auf andere Websites und auf cleebration.com sind einfache Links.
@@ -124,6 +147,6 @@
       <a href="https://www.dsb.gv.at" rel="noopener" target="_blank">dsb.gv.at</a>.
     </p>
 
-    <p class="meta">Stand: 15. Oktober 2026</p>
+    <p class="meta">Stand: 20. Oktober 2026</p>
   </section>
 </div>

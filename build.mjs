@@ -137,7 +137,7 @@ const esc = (t) => String(t ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<
 const datum = (d) => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(d ?? ""); return m ? `${m[3]}.${m[2]}.${m[1]}` : ""; };
 async function museumsbahnen() {
   const datei = join(SRC, "data", "museumsbahnen.json");
-  if (!existsSync(datei)) return { MUSEUMSBAHNEN: "", MB_STAND: "", MB_ANZAHL: "0", MB_FILTER: "" };
+  if (!existsSync(datei)) return { MUSEUMSBAHNEN: "", MB_STAND: "", MB_ANZAHL: "0", MB_FILTER: "", MB_EINREICHEN: "" };
   const { stand, eintraege } = JSON.parse(await read(datei));
   const ueber = (e) => e.kategorie === "Übersicht/Verband";
   const liste = eintraege.filter((e) => !ueber(e)).sort((a, b) => { const r = Object.keys(LAENDER); return (r.indexOf(a.land) - r.indexOf(b.land)) || a.titel.localeCompare(b.titel, "de"); });
@@ -150,6 +150,7 @@ async function museumsbahnen() {
   <p>${esc(e.beschreibung)}</p>
   <dl class="mb-daten">${e.adresse ? `<dt>Adresse</dt><dd>${esc(e.adresse)}</dd>` : ""}${e.link ? `<dt>Web</dt><dd><a href="${esc(e.link)}" rel="noopener" target="_blank">${esc(host)}</a></dd>` : ""}</dl>
   ${e.aktuelles ? `<p class="mb-aktuell"><span>Aktuell · Stand ${datum(e.geprueftAm)}</span>${esc(e.aktuelles)}</p>` : ""}
+  <button type="button" class="mb-melden" data-melden="${esc(e.id)}" hidden>Änderung melden</button>
 </article>`;
   };
   const verz = eintraege.filter(ueber).map((e) => `<li><a href="${esc(e.link)}" rel="noopener" target="_blank">${esc(e.titel)}</a> – ${esc(e.beschreibung)}</li>`).join("\n");
@@ -167,7 +168,8 @@ async function museumsbahnen() {
     MB_VERZEICHNISSE: verz,
     MB_STAND: datum(stand),
     MB_ANZAHL: String(liste.length),
-    MB_FILTER: filter
+    MB_FILTER: filter,
+    MB_EINREICHEN: einreichen("museumsbahnen", eintraege)
   };
 }
 
@@ -176,7 +178,7 @@ async function museumsbahnen() {
    Gleiches Kartenlayout und Filter-Skript wie /museumsbahnen (Ids mb-land, mb-kat). */
 async function modellbahnanlagen() {
   const datei = join(SRC, "data", "modellbahnanlagen.json");
-  if (!existsSync(datei)) return { MODELLBAHNANLAGEN: "", MA_STAND: "", MA_ANZAHL: "0", MA_FILTER: "" };
+  if (!existsSync(datei)) return { MODELLBAHNANLAGEN: "", MA_STAND: "", MA_ANZAHL: "0", MA_FILTER: "", MA_EINREICHEN: "" };
   const { stand, eintraege } = JSON.parse(await read(datei));
   const r = Object.keys(LAENDER);
   const liste = eintraege.slice().sort((a, b) => (r.indexOf(a.land) - r.indexOf(b.land)) || a.titel.localeCompare(b.titel, "de"));
@@ -189,6 +191,7 @@ async function modellbahnanlagen() {
   <p>${esc(e.beschreibung)}</p>
   <dl class="mb-daten">${e.adresse ? `<dt>Adresse</dt><dd>${esc(e.adresse)}</dd>` : ""}${e.link ? `<dt>Web</dt><dd><a href="${esc(e.link)}" rel="noopener" target="_blank">${esc(host)}</a></dd>` : ""}</dl>
   ${e.aktuelles ? `<p class="mb-aktuell"><span>Öffnung · Stand ${datum(e.geprueftAm)}</span>${esc(e.aktuelles)}</p>` : ""}
+  <button type="button" class="mb-melden" data-melden="${esc(e.id)}" hidden>Änderung melden</button>
 </article>`;
   };
   const laender = r.filter((l) => liste.some((e) => e.land === l));
@@ -203,8 +206,73 @@ async function modellbahnanlagen() {
     MODELLBAHNANLAGEN: `<div class="mb-grid" id="mb-grid">${liste.map(karte).join("\n")}</div>`,
     MA_STAND: datum(stand),
     MA_ANZAHL: String(liste.length),
-    MA_FILTER: filter
+    MA_FILTER: filter,
+    MA_EINREICHEN: einreichen("modellbahnanlagen", eintraege)
   };
+}
+
+
+/* Formular „Melden“ für die Verzeichnisse (20.10.2026): Banner oben auf der Seite + Dialog.
+   Sendet an die Redaktion (config.einreichungApi); dort prüft Chris jede Meldung, bevor sie online geht.
+   Ohne JavaScript bleibt der Hinweis mit E-Mail-Adresse stehen. */
+function einreichen(verzeichnis, eintraege) {
+  const mb = verzeichnis === "museumsbahnen";
+  const was = mb ? "Museumsbahn" : "Modellbahnanlage";
+  const opt = (v, t) => `<option value="${esc(v)}">${esc(t)}</option>`;
+  const kats = [...new Set(eintraege.map((e) => e.kategorie).filter((k) => k && k !== "Übersicht/Verband"))].sort((a, b) => a.localeCompare(b, "de"));
+  const sortiert = eintraege.filter((e) => e.kategorie !== "Übersicht/Verband").slice().sort((a, b) => a.titel.localeCompare(b.titel, "de"));
+  const laender = Object.keys(LAENDER).filter((l) => l !== "International");
+  const pf = '<span class="pflicht" aria-hidden="true">*</span>';
+  return `<section class="melden-band" aria-labelledby="melden-titel">
+  <div class="wrap melden-band__inner">
+    <div>
+      <h2 id="melden-titel">${mb ? "Fehlt eine Bahn? Stimmt etwas nicht mehr?" : "Fehlt eine Anlage? Stimmt etwas nicht mehr?"}</h2>
+      <p>${mb ? "Betreiber, Vereine und Fans können hier neue Museumsbahnen melden oder Termine und Angaben aktualisieren." : "Betreiber, Clubs und Fans können hier neue H0-Anlagen melden oder Öffnungszeiten und Angaben aktualisieren."} Ich prüfe jede Meldung auf der offiziellen Seite, bevor sie online geht, und melde mich bei Rückfragen per E-Mail.</p>
+      <p class="melden-ohnejs">Oder per E-Mail an <a href="mailto:${esc(config.mail)}">${esc(config.mail)}</a>.</p>
+    </div>
+    <div class="melden-knoepfe">
+      <button type="button" class="btn btn--rot" data-melden-neu hidden>Neue ${was} melden</button>
+      <button type="button" class="btn btn--ghost" data-melden-aendern hidden>Eintrag aktualisieren</button>
+    </div>
+  </div>
+</section>
+<dialog class="melden" id="melden" aria-labelledby="melden-kopf">
+  <form class="melden__form" data-api="${esc(config.einreichungApi)}" data-verzeichnis="${verzeichnis}" novalidate>
+    <div class="melden__kopf"><h2 id="melden-kopf">${was} melden</h2><button type="button" class="melden__zu" data-melden-zu aria-label="Schließen">×</button></div>
+    <fieldset class="melden__typ"><legend>Was möchtest du melden?</legend>
+      <label><input type="radio" name="typ" value="neu" checked> Neuer Eintrag</label>
+      <label><input type="radio" name="typ" value="aenderung"> Änderung an einem bestehenden Eintrag</label>
+    </fieldset>
+    <label data-nur="aenderung" hidden>Welcher Eintrag? ${pf}<select name="eintrag"><option value="">Bitte wählen</option>${sortiert.map((e) => opt(e.id, e.titel)).join("")}</select></label>
+    <label>Name der ${mb ? "Bahn bzw. des Museums" : "Anlage"} ${pf}<input name="titel" required maxlength="120" autocomplete="off"></label>
+    <div class="melden__2" data-nur="neu">
+      <label>Land ${pf}<select name="land"><option value="">Bitte wählen</option>${laender.map((l) => opt(l, LAENDER[l])).join("")}<option value="andere">anderes Land</option></select></label>
+      <label>${mb ? "Region bzw. Strecke" : "Ort"}<input name="ort" maxlength="120" placeholder="${mb ? "z. B. Steyr – Grünburg" : "z. B. Wien"}"></label>
+    </div>
+    <div class="melden__2" data-nur="neu">
+      <label>Art<select name="kategorie"><option value="">Bitte wählen</option>${kats.map((k) => opt(k, k)).join("")}</select></label>
+      ${mb ? `<label>Fährt dort Dampf?<select name="dampf"><option value="">weiß nicht</option>${["regelmäßig", "zeitweise", "nein"].map((d) => opt(d, d)).join("")}</select></label>` : `<label class="melden__check"><input type="checkbox" name="h0" value="1"><span>Die Anlage ist in Spur H0 (1:87) ${pf}</span></label>`}
+    </div>
+    <label data-nur="neu">Adresse<input name="adresse" maxlength="200" autocomplete="off"></label>
+    <div class="melden__2">
+      <label>Website des Betreibers <span data-nur="neu">${pf}</span><input name="link" type="url" inputmode="url" maxlength="300" placeholder="https://"></label>
+      <label>Link zu ${mb ? "Fahrtagen/Terminen" : "Öffnungszeiten"}<input name="termine" type="url" inputmode="url" maxlength="300" placeholder="https://"></label>
+    </div>
+    <label><span data-nur="neu">Kurze Beschreibung</span><span data-nur="aenderung" hidden>Was soll sich ändern?</span> ${pf}<textarea name="text" rows="4" maxlength="2000" required></textarea></label>
+    <fieldset class="melden__typ"><legend>Du bist …</legend>
+      <label><input type="radio" name="rolle" value="betreiber"> Betreiber bzw. ${mb ? "Verein" : "Club"}</label>
+      <label><input type="radio" name="rolle" value="besucher" checked> Besucher bzw. Fan</label>
+    </fieldset>
+    <div class="melden__2">
+      <label>Dein Name<input name="name" maxlength="80" autocomplete="name"></label>
+      <label>Deine E-Mail (für Rückfragen) ${pf}<input name="email" type="email" required maxlength="120" autocomplete="email"></label>
+    </div>
+    <label class="melden__hp" aria-hidden="true">Website<input name="website" tabindex="-1" autocomplete="off"></label>
+    <label class="melden__check"><input type="checkbox" name="einwilligung" value="1" required><span>Ich bin einverstanden, dass meine Angaben zur Prüfung gespeichert werden und ich bei Rückfragen per E-Mail kontaktiert werde (<a href="/datenschutz#meldungen" target="_blank">Datenschutz</a>). Name und E-Mail werden nicht veröffentlicht. ${pf}</span></label>
+    <p class="melden__meldung" role="status" aria-live="polite"></p>
+    <div class="melden__fuss"><button type="submit" class="btn btn--rot">Meldung senden</button><button type="button" class="btn btn--hell" data-melden-zu>Abbrechen</button></div>
+  </form>
+</dialog>`;
 }
 
 const globals = {

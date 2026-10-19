@@ -19,18 +19,18 @@ const ziel = (res) => (res.headers.get("location") || "").replace(BASIS, "");
 
 console.log("\nWeiterleitungen moraro.world\n");
 
-for (const [alt, neu] of [["/bau", "/anlage"], ["/gleisplan", "/anlage"], ["/loks", "/fahrzeuge"], ["/dampfbahnen", "/dampflokfahrten"], ["/dampflokbahnen", "/dampflokfahrten"], ["/gallerie", "/galerie"]]) {
+for (const [alt, neu] of [["/bau", "/anlage"], ["/gleisplan", "/anlage"], ["/loks", "/fahrzeuge"], ["/dampfbahnen", "/dampflokfahrten"], ["/dampflokbahnen", "/dampflokfahrten"], ["/gallerie", "/"], ["/blog", "/anlage#baubericht"], ["/galerie", "/"]]) {
   const r = await hole(alt);
   ok(r.status === 301 && ziel(r) === neu, `${alt} → ${neu} (301)`);
 }
-ok(ziel(await hole("/post/irgendwas")) === "/blog", "/post/… → /blog");
+ok(ziel(await hole("/post/irgendwas")) === "/anlage", "/post/… → /anlage");
 
 {
   const r = await hole("/anlage", "https://www.moraro.world");
   ok(r.status === 301 && r.headers.get("location") === BASIS + "/anlage", "www → ohne www (301)");
   const r2 = await hole("/bau", "https://www.moraro.world");
   ok(r2.headers.get("location") === BASIS + "/anlage", "www + Kurzadresse: EIN Sprung");
-  for (const p of ["/", "/anlage", "/fahrzeuge", "/fahrzeug", "/dampflokfahrten", "/fahrt", "/blog", "/post", "/galerie", "/bild", "/impressum", "/datenschutz"]) {
+  for (const p of ["/", "/anlage", "/fahrzeuge", "/fahrzeug", "/dampflokfahrten", "/fahrt", "/post", "/bild", "/museumsbahnen", "/modellbahnanlagen", "/impressum", "/datenschutz"]) {
     const r3 = await hole(p);
     if (r3.status !== 200 || (await r3.text()) !== "ASSET") assert.fail(`${p} geht nicht an die Asset-Schicht`);
   }

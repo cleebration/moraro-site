@@ -45,5 +45,10 @@ export default {
   // Postfach: moraro.world als sekundäre Domain im Workspace cleebration.com
   // (Regel Tool Baukasten, „Mail für Projekt-Domains“). NOCH EINZURICHTEN –
   // bis dahin kommt hier keine Post an. Von Chris zu bestätigen.
-  mail: "hallo@moraro.world"
+  mail: "hallo@moraro.world",
+
+  // Meldungen für /museumsbahnen und /modellbahnanlagen (Formular „Melden“).
+  // Landen im Cockpit (Redaktion → MoRaRo-Meldungen), werden dort geprüft; Rückfragen per E-Mail.
+  // In Cloudflare Access braucht /api/moraro eine Bypass-Regel (wie /api/gedankenzeit).
+  einreichungApi: "https://redaktion.cleebration.com/api/moraro/einreichung"
 };

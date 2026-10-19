@@ -253,3 +253,43 @@ p { margin: 0 0 1em; }
 
 /* hidden-Attribut muss display:flex der Karten schlagen */
 .mb-karte[hidden], .mb-leer[hidden], .mb-reset[hidden] { display: none !important; }
+
+/* ---------- Melden (Verzeichnisse, 20.10.2026) ---------- */
+.melden-band { background: var(--pit); color: var(--creme); border-bottom: 3px solid var(--messing); }
+.melden-band__inner { display: flex; flex-wrap: wrap; gap: 1rem 2rem; align-items: center; justify-content: space-between; padding-block: 1.4rem; }
+.melden-band h2 { color: var(--weiss); font-size: clamp(1.3rem, 3vw, 1.7rem); margin-bottom: .35em; }
+.melden-band p { margin: 0; max-width: 62ch; }
+.melden-band a { color: var(--messing); }
+.melden-ohnejs { margin-top: .4rem !important; font-size: .95rem; }
+.melden-ohnejs--klein { opacity: .8; font-size: .85rem; }
+.melden-knoepfe { display: flex; flex-wrap: wrap; gap: .6rem; }
+.mb-melden { margin-top: .6rem; background: none; border: 0; padding: .3rem 0; font: 500 .9rem var(--font-body); color: var(--rot); text-decoration: underline; text-underline-offset: .18em; cursor: pointer; }
+.mb-melden:hover { color: var(--rot-dk); }
+.btn--hell { border-color: var(--linie); color: var(--russ); background: var(--weiss); }
+.btn--hell:hover { background: var(--papier); }
+dialog.melden { width: min(720px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); padding: 0; border: 0; border-top: 6px solid var(--messing); border-radius: var(--radius); background: var(--papier); color: var(--russ); box-shadow: 0 20px 60px rgba(0,0,0,.45); }
+dialog.melden::backdrop { background: rgba(28, 27, 25, .7); }
+.melden__form { padding: 1.2rem 1.4rem 1.4rem; display: grid; gap: .85rem; }
+.melden__kopf { display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
+.melden__kopf h2 { margin: 0; font-size: 1.6rem; }
+.melden__zu { background: none; border: 0; font-size: 2rem; line-height: 1; cursor: pointer; color: var(--schotter); min-width: 44px; min-height: 44px; }
+.melden__form label { display: block; font-weight: 500; font-size: .95rem; }
+.melden__form label > :is(input, select, textarea) { display: block; margin-top: .3rem; }
+.melden-knoepfe .btn--ghost { background: transparent; }
+.melden__form input:not([type="radio"]):not([type="checkbox"]), .melden__form select, .melden__form textarea {
+  font: 400 1rem var(--font-body); padding: .6rem .7rem; border: 1px solid var(--linie); border-radius: var(--radius); background: var(--weiss); color: var(--russ); width: 100%; box-sizing: border-box; min-height: 44px; }
+.melden__form :is(input, select, textarea):focus-visible { outline: 3px solid var(--messing); outline-offset: 1px; }
+.melden__form :user-invalid { border-color: var(--rot); }
+.melden__typ { border: 0; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: .4rem 1.4rem; }
+.melden__typ legend { font-weight: 600; margin-bottom: .3rem; padding: 0; }
+.melden__typ label, .melden__check { display: flex !important; align-items: flex-start; gap: .5rem; font-weight: 400 !important; }
+.melden__form .melden__typ input, .melden__form .melden__check input { display: inline-block; margin: .2rem 0 0; width: 1.1rem; height: 1.1rem; accent-color: var(--rot); flex: none; }
+.melden__2 { display: grid; grid-template-columns: 1fr 1fr; gap: .85rem; }
+.melden__2[hidden], .melden__form [hidden] { display: none !important; }
+@media (max-width: 600px) { .melden__2 { grid-template-columns: 1fr; } .melden__form { padding: 1rem; } }
+.melden__hp { position: absolute !important; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+.pflicht { color: var(--rot); }
+.melden__meldung { margin: 0; min-height: 1.2em; }
+.melden__meldung--fehler { color: var(--rot-dk); font-weight: 500; }
+.melden__meldung--ok { background: var(--weiss); border-left: 4px solid var(--messing); padding: .9rem 1rem; }
+.melden__fuss { display: flex; flex-wrap: wrap; gap: .6rem; }

@@ -18,5 +18,11 @@
 /dampfbahnen    /dampflokfahrten  301
 /dampflokbahnen /dampflokfahrten  301
 /dampflokbahnen.html /dampflokfahrten 301
-/gallerie       /galerie          301
-/post/*         /blog             301
+/gallerie       /                 301
+/post/*         /anlage           301
+
+# --- Menüpunkte Blog und Galerie gestrichen (20.10.2026) ----------------------
+#  Beiträge stehen als Baubericht auf /anlage bzw. als Berichte auf /dampflokfahrten,
+#  Bilder in den Galerien der jeweiligen Bereiche. Einzelbeitrag /post und Einzelbild /bild bleiben.
+/blog           /anlage#baubericht 301
+/galerie        /                 301

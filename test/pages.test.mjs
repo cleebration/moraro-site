@@ -15,7 +15,7 @@ const seiten = readdirSync(new URL("../src/pages/", import.meta.url)).filter((f)
 for (const s of seiten) {
   const html = readFileSync(new URL(s, PUB), "utf8");
   assert.ok(!/\{\{\w+\}\}/.test(html), `${s}: offener Platzhalter`);
-  for (const nav of ["/anlage", "/fahrzeuge", "/dampflokfahrten", "/museumsbahnen", "/modellbahnanlagen", "/blog", "/galerie"]) assert.ok(html.includes(`href="${nav}"`), `${s}: Menü ${nav} fehlt`);
+  for (const nav of ["/anlage", "/fahrzeuge", "/dampflokfahrten", "/museumsbahnen", "/modellbahnanlagen"]) assert.ok(html.includes(`href="${nav}"`), `${s}: Menü ${nav} fehlt`);
   const text = html.replace(/<[^>]+>/g, " ");
   assert.ok(!/\bHO\b|HØ/.test(text), `${s}: Schreibweise H0 verletzt`);
   for (const m of html.matchAll(/(?:src|href)="(\/assets\/[^"#?]+)"/g)) {
@@ -27,7 +27,7 @@ for (const s of seiten) {
 }
 ok(true, `${seiten.length} Seiten: keine Platzhalter, Menü komplett, Assets da, Feeds richtig, „H0“`);
 
-for (const [s, nav] of [["anlage.html", "anlage"], ["fahrzeuge.html", "fahrzeuge"], ["dampflokfahrten.html", "dampflokfahrten"], ["museumsbahnen.html", "museumsbahnen"], ["modellbahnanlagen.html", "modellbahnanlagen"], ["blog.html", "blog"], ["galerie.html", "galerie"]]) {
+for (const [s, nav] of [["anlage.html", "anlage"], ["fahrzeuge.html", "fahrzeuge"], ["dampflokfahrten.html", "dampflokfahrten"], ["museumsbahnen.html", "museumsbahnen"], ["modellbahnanlagen.html", "modellbahnanlagen"]]) {
   const html = readFileSync(new URL(s, PUB), "utf8");
   assert.ok(html.includes(`data-nav="${nav}" aria-current="page"`), `${s}: aktiver Menüpunkt`);
 }
@@ -38,6 +38,20 @@ ok((mb.match(/class="mb-karte"/g) || []).length >= 10 && !/<img[^>]+src="https?:
 
 const ma = readFileSync(new URL("modellbahnanlagen.html", PUB), "utf8");
 ok((ma.match(/class="mb-karte"/g) || []).length >= 10 && !/<img[^>]+src="https?:/.test(ma), "Modellbahnanlagen: Verzeichnis gebaut, keine fremden Bilder");
+
+for (const [s, verz] of [["museumsbahnen.html", "museumsbahnen"], ["modellbahnanlagen.html", "modellbahnanlagen"]]) {
+  const h = readFileSync(new URL(s, PUB), "utf8");
+  assert.ok(h.indexOf('class="melden-band"') > 0 && h.indexOf('class="melden-band"') < h.indexOf('id="mb-grid"'), `${s}: Melden-Band oben`);
+  assert.ok(h.includes(`data-verzeichnis="${verz}"`) && h.includes('data-api="https://redaktion.cleebration.com/api/moraro/einreichung"'), `${s}: Formular an Redaktion`);
+  assert.ok(h.includes('/assets/einreichen.js') && h.includes('name="einwilligung"') && h.includes('name="website"'), `${s}: Skript, Einwilligung, Honigtopf`);
+  assert.ok((h.match(/data-melden="/g) || []).length === (h.match(/class="mb-karte"/g) || []).length, `${s}: „Änderung melden“ an jeder Karte`);
+}
+ok(true, "Formular „Melden“ oben auf Museumsbahnen und Modellbahnanlagen");
+for (const s of seiten) {
+  const h = readFileSync(new URL(s, PUB), "utf8");
+  assert.ok(!/href="\/(blog|galerie)"/.test(h), `${s}: Link auf gestrichenen Menüpunkt`);
+}
+ok(true, "keine Links mehr auf /blog und /galerie");
 
 const idx = readFileSync(new URL("index.html", PUB), "utf8");
 ok(idx.includes("cleebration-credit"), "Credit-Baustein „Website von cleebration“ im Fuß");
