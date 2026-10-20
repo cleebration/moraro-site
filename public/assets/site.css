@@ -293,3 +293,5 @@ dialog.melden::backdrop { background: rgba(28, 27, 25, .7); }
 .melden__meldung--fehler { color: var(--rot-dk); font-weight: 500; }
 .melden__meldung--ok { background: var(--weiss); border-left: 4px solid var(--messing); padding: .9rem 1rem; }
 .melden__fuss { display: flex; flex-wrap: wrap; gap: .6rem; }
+.melden-unten { margin-top: 1rem; }
+.melden-alt { font-size: .95rem; color: var(--schotter); }

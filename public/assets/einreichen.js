@@ -35,8 +35,8 @@ if (dlg && form && typeof dlg.showModal === "function") {
 
   for (const b of document.querySelectorAll("[data-melden-neu], [data-melden-aendern], [data-melden]")) b.hidden = false;
   document.querySelector(".melden-ohnejs")?.classList.add("melden-ohnejs--klein");
-  document.querySelector("[data-melden-neu]")?.addEventListener("click", () => oeffnen("neu"));
-  document.querySelector("[data-melden-aendern]")?.addEventListener("click", () => oeffnen("aenderung"));
+  for (const b of document.querySelectorAll("[data-melden-neu]")) b.addEventListener("click", () => oeffnen("neu"));
+  for (const b of document.querySelectorAll("[data-melden-aendern]")) b.addEventListener("click", () => oeffnen("aenderung"));
   for (const b of document.querySelectorAll("[data-melden]")) b.addEventListener("click", () => oeffnen("aenderung", b.dataset.melden));
   for (const b of dlg.querySelectorAll("[data-melden-zu]")) b.addEventListener("click", () => dlg.close());
   dlg.addEventListener("click", (ev) => { if (ev.target === dlg) dlg.close(); });

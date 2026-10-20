@@ -45,6 +45,7 @@ for (const [s, verz] of [["museumsbahnen.html", "museumsbahnen"], ["modellbahnan
   assert.ok(h.includes(`data-verzeichnis="${verz}"`) && h.includes('data-api="https://redaktion.cleebration.com/api/moraro/einreichung"'), `${s}: Formular an Redaktion`);
   assert.ok(h.includes('/assets/einreichen.js') && h.includes('name="einwilligung"') && h.includes('name="website"'), `${s}: Skript, Einwilligung, Honigtopf`);
   assert.ok((h.match(/data-melden="/g) || []).length === (h.match(/class="mb-karte"/g) || []).length, `${s}: „Änderung melden“ an jeder Karte`);
+  assert.ok((h.match(/data-melden-neu/g) || []).length === 2, `${s}: Melden-Knopf oben und unten`);
 }
 ok(true, "Formular „Melden“ oben auf Museumsbahnen und Modellbahnanlagen");
 for (const s of seiten) {
