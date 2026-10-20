@@ -36,9 +36,33 @@ function findeWeiterleitung(pfad) {
   return null;
 }
 
+/** Formular „Melden“ (20.10.2026): an die Redaktion weiterreichen – intern, ohne Umweg übers Internet. */
+async function melden(request, env) {
+  if (request.method !== "POST") return Response.json({ fehler: "Nur POST." }, { status: 405 });
+  if (!env.REDAKTION) return Response.json({ fehler: "Gerade klappt es nicht." }, { status: 503 });
+  const body = await request.text();
+  if (body.length > 20000) return Response.json({ fehler: "Zu viel Text." }, { status: 413 });
+  try {
+    const r = await env.REDAKTION.fetch("https://redaktion.intern/api/moraro/einreichung", {
+      method: "POST",
+      body,
+      headers: {
+        "content-type": "application/json",
+        "Origin": "https://moraro.world",
+        "X-Melder-IP": request.headers.get("CF-Connecting-IP") || ""
+      }
+    });
+    return new Response(r.body, { status: r.status, headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" } });
+  } catch (err) {
+    console.error("melden", err);
+    return Response.json({ fehler: "Gerade klappt es nicht. Bitte später noch einmal versuchen." }, { status: 502 });
+  }
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    if (url.pathname === "/api/melden") return melden(request, env);
 
     const treffer = findeWeiterleitung(url.pathname);
     const ziel = treffer ? new URL(treffer.ziel, url) : new URL(url);

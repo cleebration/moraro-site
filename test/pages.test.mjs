@@ -42,7 +42,7 @@ ok((ma.match(/class="mb-karte"/g) || []).length >= 10 && !/<img[^>]+src="https?:
 for (const [s, verz] of [["museumsbahnen.html", "museumsbahnen"], ["modellbahnanlagen.html", "modellbahnanlagen"]]) {
   const h = readFileSync(new URL(s, PUB), "utf8");
   assert.ok(h.indexOf('class="melden-band"') > 0 && h.indexOf('class="melden-band"') < h.indexOf('id="mb-grid"'), `${s}: Melden-Band oben`);
-  assert.ok(h.includes(`data-verzeichnis="${verz}"`) && h.includes('data-api="https://redaktion.cleebration.com/api/moraro/einreichung"'), `${s}: Formular an Redaktion`);
+  assert.ok(h.includes(`data-verzeichnis="${verz}"`) && h.includes('data-api="/api/melden"'), `${s}: Formular an Redaktion`);
   assert.ok(h.includes('/assets/einreichen.js') && h.includes('name="einwilligung"') && h.includes('name="website"'), `${s}: Skript, Einwilligung, Honigtopf`);
   assert.ok((h.match(/data-melden="/g) || []).length === (h.match(/class="mb-karte"/g) || []).length, `${s}: „Änderung melden“ an jeder Karte`);
   assert.ok((h.match(/data-melden-neu/g) || []).length === 2, `${s}: Melden-Knopf oben und unten`);

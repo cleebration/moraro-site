@@ -47,4 +47,13 @@ ok(ziel(await hole("/post/irgendwas")) === "/anlage", "/post/… → /anlage");
   ok(/"run_worker_first":\s*true/.test(wr), "run_worker_first: true — der Worker entscheidet");
 }
 
+{
+  let gesehen = null;
+  const env = { ASSETS: { fetch: async () => new Response("ASSET") }, REDAKTION: { fetch: async (u, init) => { gesehen = { u, init }; return Response.json({ nummer: "MR-TEST01" }); } } };
+  const r = await worker.fetch(new Request(BASIS + "/api/melden", { method: "POST", body: '{"titel":"x"}', headers: { "CF-Connecting-IP": "1.2.3.4" } }), env, {});
+  ok(r.status === 200 && (await r.json()).nummer === "MR-TEST01" && gesehen.u.endsWith("/api/moraro/einreichung") && gesehen.init.headers["X-Melder-IP"] === "1.2.3.4", "/api/melden → Redaktion (Service Binding, IP mitgegeben)");
+  const g = await worker.fetch(new Request(BASIS + "/api/melden"), env, {});
+  ok(g.status === 405, "/api/melden nur POST");
+}
+
 console.log(`\n${bestanden} Prüfungen bestanden\n`);

@@ -49,6 +49,6 @@ export default {
 
   // Meldungen für /museumsbahnen und /modellbahnanlagen (Formular „Melden“).
   // Landen im Cockpit (Redaktion → MoRaRo-Meldungen), werden dort geprüft; Rückfragen per E-Mail.
-  // In Cloudflare Access braucht /api/moraro eine Bypass-Regel (wie /api/gedankenzeit).
-  einreichungApi: "https://redaktion.cleebration.com/api/moraro/einreichung"
+  // Gleiche Adresse wie die Website: worker/index.js reicht /api/melden per Service Binding an die Redaktion weiter.
+  einreichungApi: "/api/melden"
 };

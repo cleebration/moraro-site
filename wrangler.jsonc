@@ -24,5 +24,9 @@
     "run_worker_first": true
   },
 
+  // Formular „Melden“: /api/melden reicht intern an den Worker „redaktion“ weiter (Service Binding).
+  // Gleiche Adresse wie die Seite → kein CORS, und Cloudflare Access ist nicht im Weg.
+  "services": [{ "binding": "REDAKTION", "service": "redaktion" }],
+
   "observability": { "enabled": true }
 }
