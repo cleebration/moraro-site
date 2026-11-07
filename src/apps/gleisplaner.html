@@ -1,0 +1,688 @@
+<title>MoRaRo Gleisplaner</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: Vollbild-Zeichenfläche (Anlagenplatte), darüber Glas-Paneele: Bibliothek links, Werkstatt-Paneel rechts, Kopfleiste oben. */
+:root{
+  --paper:#f3f1ec; --paper-2:#e8e5dd; --soot:#17181a; --ink:#24262a; --muted:#6c6b66;
+  --signal:#c8202a; --brass:#8a6a1f; --ballast:#8c8b86; --line:rgba(36,38,42,.14);
+  --glass:rgba(250,249,246,.78); --glass-brd:rgba(255,255,255,.65); --shadow:0 8px 28px rgba(23,24,26,.16);
+  --ok:#2f7d4f; --warn:#b26a00; --err:#c8202a;
+  --grid:rgba(36,38,42,.07); --grid-strong:rgba(36,38,42,.14);
+  --f-display:"Oswald","Arial Narrow",Arial,sans-serif; --f-body:"Barlow","Segoe UI",system-ui,sans-serif; --f-mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --paper:#17181a; --paper-2:#202226; --ink:#ecebe6; --muted:#a3a29c; --signal:#e5484d; --brass:#c9a23f; --ballast:#8c8b86; --line:rgba(236,235,230,.14);
+  --glass:rgba(30,32,36,.78); --glass-brd:rgba(255,255,255,.08); --shadow:0 8px 28px rgba(0,0,0,.45);
+  --ok:#4fb67a; --warn:#e0a03a; --err:#e5484d; --grid:rgba(236,235,230,.05); --grid-strong:rgba(236,235,230,.11); color-scheme:dark}}
+:root[data-theme="dark"]{
+  --paper:#17181a; --paper-2:#202226; --ink:#ecebe6; --muted:#a3a29c; --signal:#e5484d; --brass:#c9a23f; --ballast:#8c8b86; --line:rgba(236,235,230,.14);
+  --glass:rgba(30,32,36,.78); --glass-brd:rgba(255,255,255,.08); --shadow:0 8px 28px rgba(0,0,0,.45);
+  --ok:#4fb67a; --warn:#e0a03a; --err:#e5484d; --grid:rgba(236,235,230,.05); --grid-strong:rgba(236,235,230,.11); color-scheme:dark}
+html,body{height:100%}
+body{background:var(--paper);color:var(--ink);font:15px/1.45 var(--f-body);overflow:hidden}
+#app{position:relative;height:100%;overflow:hidden}
+#cv{position:absolute;inset:0;width:100%;height:100%;touch-action:none;display:block;cursor:default}
+#cv.pan{cursor:grab}#cv.board{cursor:crosshair}
+.glass{background:var(--glass);border:1px solid var(--glass-brd);backdrop-filter:blur(18px) saturate(1.3);-webkit-backdrop-filter:blur(18px) saturate(1.3);box-shadow:var(--shadow);border-radius:16px}
+button{font:inherit;color:inherit}
+.bar{position:absolute;top:10px;left:max(10px,env(safe-area-inset-left,0px));right:max(10px,env(safe-area-inset-right,0px));display:flex;align-items:center;gap:6px;padding:6px 8px;z-index:5;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:8px;padding:0 8px 0 4px;margin-right:auto;min-width:0}
+.brand svg{flex:none}
+.brand b{font:600 18px/1 var(--f-display);letter-spacing:.02em;white-space:nowrap}
+.brand small{font:500 11px/1 var(--f-mono);color:var(--muted);white-space:nowrap}
+.ib{flex:none;width:38px;height:38px;border-radius:11px;border:1px solid transparent;background:transparent;display:grid;place-items:center;cursor:pointer;position:relative;color:var(--ink)}
+.ib:hover{background:var(--line)}
+.ib:focus-visible,.btn:focus-visible,.chip:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--brass);outline-offset:2px}
+.ib.on{background:var(--ink);color:var(--paper)}
+.ib svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.ib[disabled]{opacity:.35;cursor:default}
+.tools{display:flex;align-items:center;gap:4px;min-width:0;overflow-x:auto;scrollbar-width:none}.tools::-webkit-scrollbar{display:none}
+.sep{flex:none;width:1px;height:24px;background:var(--line);margin:0 2px}
+.badge{position:absolute;top:2px;right:2px;min-width:16px;height:16px;padding:0 4px;border-radius:8px;background:var(--err);color:#fff;font:600 10px/16px var(--f-mono);text-align:center}
+.badge[hidden]{display:none}
+.panel{position:absolute;top:70px;bottom:52px;z-index:4;display:flex;flex-direction:column;overflow:hidden}
+#lib{left:max(10px,env(safe-area-inset-left,0px));width:236px}
+#side{right:max(10px,env(safe-area-inset-right,0px));width:318px}
+.ph{display:flex;align-items:center;justify-content:space-between;padding:12px 14px 8px;gap:8px}
+.ph h2{margin:0;font:600 13px/1 var(--f-display);text-transform:uppercase;letter-spacing:.12em}
+.scroll{overflow:auto;padding:0 10px 12px;flex:1;min-height:0}
+.rep{display:flex;align-items:center;gap:2px;margin-left:auto;font-size:13px}.rep .mini{width:26px;height:26px;font-weight:600;font-size:16px}
+.cat{font:600 11px/1 var(--f-display);letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:14px 4px 6px}
+.parts{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.part{display:flex;flex-direction:column;align-items:flex-start;gap:3px;padding:8px;border-radius:10px;border:1px solid var(--line);background:transparent;cursor:pointer;text-align:left;min-width:0}
+.part:hover{border-color:var(--brass);background:var(--line)}
+.part canvas{width:100%;height:34px}
+.part b{font:500 12px/1 var(--f-mono)}
+.part span{font-size:11.5px;color:var(--muted);line-height:1.25}
+.tabs{display:flex;gap:2px;padding:10px 10px 0}
+.tab{flex:1;border:0;background:transparent;padding:8px 4px;border-radius:9px;cursor:pointer;font:600 12px/1 var(--f-display);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);position:relative}
+.tab.on{background:var(--line);color:var(--ink)}
+.tab .badge{top:-3px;right:-1px}
+.sec{padding:10px 4px;border-bottom:1px solid var(--line)}
+.sec:last-child{border-bottom:0}
+.sec h3{margin:0 0 8px;font:600 15px/1.2 var(--f-display);letter-spacing:.02em;text-wrap:balance}
+.row{display:flex;align-items:center;gap:8px;margin:6px 0;flex-wrap:wrap}
+.row label{font-size:12.5px;color:var(--muted);min-width:96px}
+input[type=number],input[type=text],select{background:var(--paper);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:6px 8px;font:500 13px var(--f-mono);width:100px;min-width:0}
+input[type=text]{font-family:var(--f-body);width:auto;flex:1}
+input[type=color]{width:30px;height:30px;border:0;background:none;padding:0;cursor:pointer}
+.btn{border:1px solid var(--line);background:var(--paper);border-radius:9px;padding:7px 11px;cursor:pointer;font:600 13px var(--f-body);display:inline-flex;align-items:center;gap:6px}
+.btn:hover{border-color:var(--brass)}
+.btn.pri{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.btn.warn{color:var(--err)}
+.btn svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.muted{color:var(--muted);font-size:12.5px}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.lv{display:grid;grid-template-columns:auto 1fr auto auto;gap:6px;align-items:center;padding:8px;border-radius:10px;border:1px solid var(--line);margin-bottom:6px}
+.lv.on{border-color:var(--brass);box-shadow:inset 3px 0 0 var(--brass)}
+.lv .sw{width:14px;height:14px;border-radius:4px}
+.lv .nm{font-weight:600;font-size:13.5px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer}
+.lv .meta{grid-column:2/5;font:12px var(--f-mono);color:var(--muted)}
+.lv .det{grid-column:1/5}
+.mini{width:30px;height:30px}
+.mini svg{width:17px;height:17px}
+.prob{display:grid;grid-template-columns:10px 1fr;gap:8px;padding:8px;border-radius:10px;cursor:pointer;align-items:start}
+.prob:hover{background:var(--line)}
+.dot{width:10px;height:10px;border-radius:50%;margin-top:4px}
+.dot.s-err{background:var(--err)}.dot.s-warn{background:var(--warn)}.dot.s-info{background:var(--ballast)}
+.prob b{font-weight:600;font-size:13.5px}
+.prob div{font-size:12.5px;color:var(--muted)}
+.okbox{display:flex;gap:10px;align-items:center;padding:12px;border-radius:12px;background:var(--line)}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{padding:5px 4px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+th{font:600 11px var(--f-display);letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+td.n{text-align:right;font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.status{position:absolute;bottom:10px;left:50%;transform:translateX(-50%);z-index:5;padding:7px 14px;font:500 12px var(--f-mono);display:flex;gap:14px;white-space:nowrap;max-width:calc(100% - 24px);overflow:hidden}
+.status .lvname{color:var(--brass);font-weight:600}
+.info{display:none;font-size:12.5px;color:var(--muted);background:var(--line);padding:8px 10px;border-radius:9px;margin:6px 0}
+.info.open{display:block}
+.ibtn{width:22px;height:22px;border-radius:50%;border:1px solid var(--line);background:transparent;font:600 12px/1 var(--f-display);cursor:pointer;color:var(--muted);flex:none}
+.sheet{position:absolute;inset:0;z-index:20;display:grid;place-items:center;background:rgba(23,24,26,.35);padding:16px max(16px,env(safe-area-inset-right,0px)) 16px max(16px,env(safe-area-inset-left,0px))}
+.sheet[hidden]{display:none}
+.sheet .card{width:min(560px,100%);max-height:85%;display:flex;flex-direction:column;overflow:hidden}
+.sheet .card .scroll{padding:0 16px 16px}
+.x{width:34px;height:34px}
+textarea{width:100%;min-height:150px;background:var(--paper);color:var(--ink);border:1px solid var(--line);border-radius:10px;padding:8px;font:12px var(--f-mono);resize:vertical}
+.dirchip{position:absolute;z-index:6;padding:4px;border-radius:12px;transform:translate(-50%,-140%)}
+.dirchip .btn{padding:6px 10px;font-size:12.5px;white-space:nowrap}
+.toast{position:absolute;left:50%;bottom:60px;transform:translateX(-50%);z-index:30;padding:9px 16px;font-weight:600;font-size:13.5px;opacity:0;transition:opacity .2s;pointer-events:none}
+.toast.show{opacity:1}
+.mobtog{display:none}
+.demo{font:600 10px var(--f-display);letter-spacing:.12em;text-transform:uppercase;color:var(--paper);background:var(--brass);padding:3px 6px;border-radius:5px}
+#printView{display:none}
+@media (max-width:860px){
+  .panel{top:auto;bottom:50px;height:46%;left:max(8px,env(safe-area-inset-left,0px))!important;right:max(8px,env(safe-area-inset-right,0px))!important;width:auto!important}
+  .panel.closed{display:none}
+  .mobtog{display:grid}
+  .brand small,.brand div{display:none}.brand{margin-right:0;padding:0 2px}.bar{flex-wrap:nowrap}.hideM{display:none}
+  .status{font-size:11px;gap:8px}
+  .parts{grid-template-columns:repeat(auto-fill,minmax(96px,1fr))}
+}
+@media (min-width:861px){.panel.closed{display:none}}
+@media (prefers-reduced-motion:reduce){.toast{transition:none}}
+@media print{
+  #app,.sheet,.toast{display:none!important}
+  #printView{display:block!important;background:#fff}
+  .tile{page-break-after:always;break-after:page}
+  @page{size:A4 portrait;margin:10mm}
+}
+</style>
+
+<div id="app">
+  <canvas id="cv" aria-label="Gleisplan-Zeichenfläche"></canvas>
+
+  <div class="bar glass" role="toolbar" aria-label="Werkzeuge">
+    <div class="brand">
+      <svg width="30" height="30" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="18" fill="none" stroke="var(--ink)" stroke-width="2.5"/><circle cx="20" cy="20" r="10" fill="none" stroke="var(--brass)" stroke-width="2"/><line x1="4" y1="20" x2="36" y2="20" stroke="var(--signal)" stroke-width="3"/><circle cx="20" cy="20" r="2.5" fill="var(--ink)"/></svg>
+      <div><b>Gleisplaner</b><br><small>MoRaRo · H0 · Märklin K-Gleis</small></div>
+    </div>
+    <div class="tools">
+    <button class="ib mobtog" id="tLib" title="Gleise" aria-label="Gleisbibliothek"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+    <button class="ib on" id="mSel" title="Auswählen und verschieben (V)" aria-label="Auswählen"><svg viewBox="0 0 24 24"><path d="M5 3l14 8-6 2-3 6z"/></svg></button>
+    <button class="ib" id="mBoard" title="Platte zeichnen (P)" aria-label="Platte zeichnen"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="1"/><path d="M3 10h18"/></svg></button>
+    <button class="ib" id="mRoom" title="Raum als Polygon zeichnen (O)" aria-label="Raum zeichnen"><svg viewBox="0 0 24 24"><path d="M4 4h10v6h6v10H4z"/><circle cx="4" cy="4" r="1.6"/><circle cx="14" cy="10" r="1.6"/><circle cx="20" cy="20" r="1.6"/></svg></button>
+    <span class="sep"></span>
+    <button class="ib" id="bDup" title="Gleiches Gleis anhängen (+ oder Leertaste)" aria-label="Gleiches Gleis anhängen"><svg viewBox="0 0 24 24"><rect x="3" y="7" width="12" height="12" rx="2"/><path d="M9 3h10a2 2 0 0 1 2 2v10M9 10v6M6 13h6"/></svg></button>
+    <button class="ib hideM" id="bRotL" title="Drehen −7,5° (Umschalt+R)" aria-label="Nach links drehen"><svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 3-6.2"/><path d="M4 4v4h4"/></svg></button>
+    <button class="ib" id="bRotR" title="Drehen +7,5° (R)" aria-label="Nach rechts drehen"><svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-3-6.2"/><path d="M20 4v4h-4"/></svg></button>
+    <button class="ib" id="bFlip" title="Spiegeln: links/rechts (F)" aria-label="Spiegeln"><svg viewBox="0 0 24 24"><path d="M12 3v18"/><path d="M8 7L3 12l5 5z"/><path d="M16 7l5 5-5 5z"/></svg></button>
+    <button class="ib hideM" id="bCycle" title="Anderes Ende anschließen (C)" aria-label="Anschluss wechseln"><svg viewBox="0 0 24 24"><path d="M4 9h13l-3-3M20 15H7l3 3"/></svg></button>
+    <button class="ib" id="bDel" title="Löschen (Entf)" aria-label="Löschen"><svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></button>
+    <span class="sep"></span>
+    <button class="ib" id="bUndo" title="Rückgängig (Strg+Z)" aria-label="Rückgängig"><svg viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg></button>
+    <button class="ib hideM" id="bRedo" title="Wiederholen (Strg+Umschalt+Z)" aria-label="Wiederholen"><svg viewBox="0 0 24 24"><path d="M15 14l5-5-5-5"/><path d="M20 9H10a6 6 0 0 0 0 12h3"/></svg></button>
+    <button class="ib on" id="bNr" title="Gleisnummern ein/aus (N)" aria-label="Gleisnummern ein/aus" aria-pressed="true"><svg viewBox="0 0 24 24"><path d="M9 4L7 20M17 4l-2 16M4 9h16M3 15h16"/></svg></button>
+    <button class="ib on hideM" id="bJoint" title="Schienenstöße ein/aus (J)" aria-label="Schienenstöße ein/aus" aria-pressed="true"><svg viewBox="0 0 24 24"><path d="M3 9h7M14 9h7M3 15h7M14 15h7M12 5v14"/></svg></button>
+    <button class="ib" id="bFit" title="Ganzen Plan zeigen" aria-label="Ganzen Plan zeigen"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+    <span class="sep"></span>
+    <button class="ib" id="bPrint" title="1:1-Druck in A4-Kacheln" aria-label="1:1-Druck"><svg viewBox="0 0 24 24"><path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M7 14h10v7H7z"/></svg></button>
+    <button class="ib" id="bFile" title="Plan sichern und laden" aria-label="Datei"><svg viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5"/><path d="M4 17v3h16v-3"/></svg></button>
+    <button class="ib" id="bHelp" title="Kurzanleitung" aria-label="Kurzanleitung"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 1-1 1.7M12 17h.01"/></svg></button>
+    <button class="ib mobtog" id="tSide" title="Paneel" aria-label="Paneel"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M14 4v16"/></svg><span class="badge" id="badgeM" hidden></span></button>
+    </div>
+  </div>
+
+  <aside id="lib" class="panel glass" aria-label="Gleisbibliothek">
+    <div class="ph"><h2>K-Gleis</h2><div class="rep" title="So viele gleiche Gleise setzt ein Tipp"><button class="ib mini" id="repM" aria-label="Weniger">−</button><span class="mono" id="repV">1 ×</span><button class="ib mini" id="repP" aria-label="Mehr">+</button></div><button class="ibtn" data-info="libInfo" aria-label="Erklärung">i</button></div>
+    <div class="scroll">
+      <div class="info" id="libInfo">Das rote Ende im Plan nochmals antippen hängt ein gleiches Gleis an. Mit − / + oben wählst du, wie viele gleiche Gleise ein Tipp setzt (z. B. 12 × 2231 = Kreis). Ein Gleis im Plan antippen und + drücken hängt ein gleiches an. Tippe ein Gleis an: Es wird am rot markierten Gleisende angesetzt. Ohne markiertes Ende landet es in der Bildmitte. Ein offenes Ende (Messing-Punkt) antippen, um dort weiterzubauen. Maße aus dem Märklin-K-Gleis-Katalog.</div>
+      <div id="libList"></div>
+    </div>
+  </aside>
+
+  <aside id="side" class="panel glass" aria-label="Werkstatt">
+    <div class="tabs" role="tablist">
+      <button class="tab on" data-tab="sel" role="tab">Auswahl</button>
+      <button class="tab" data-tab="lev" role="tab">Ebenen</button>
+      <button class="tab" data-tab="chk" role="tab">Prüfung<span class="badge" id="badgeT" hidden></span></button>
+      <button class="tab" data-tab="mat" role="tab">Material</button>
+    </div>
+    <div class="scroll" id="tabBody"></div>
+  </aside>
+
+  <div class="status glass" id="status"></div>
+  <div class="toast glass" id="toast" role="status"></div>
+  <div class="dirchip glass" id="dirChip" hidden><button class="btn" id="dirBtn" title="Bogenrichtung des letzten Gleises wechseln (F)"><svg viewBox="0 0 24 24"><path d="M7 7a7 7 0 0 1 10 0M17 7V3M17 7h-4"/><path d="M17 17a7 7 0 0 1-10 0M7 17v4M7 17h4"/></svg><span id="dirTxt">Richtung</span></button></div>
+</div>
+
+<div class="sheet" id="sheet" hidden><div class="card glass"><div class="ph"><h2 id="sheetT"></h2><button class="ib x" id="sheetX" aria-label="Schließen"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div><div class="scroll" id="sheetB"></div></div></div>
+<div id="printView"></div>
+
+<script>
+/*CORE*/
+const D2R=Math.PI/180, MIN26=14+26/60;
+const norm=a=>{a%=360;return a<0?a+360:a};
+function line(x0,y0,x1,y1){const L=Math.hypot(x1-x0,y1-y0),n=Math.max(2,Math.ceil(L/8)),p=[];for(let i=0;i<=n;i++){const t=i/n;p.push({x:x0+(x1-x0)*t,y:y0+(y1-y0)*t,s:L*t})}return p}
+function arcPts(R,a,side){const A=a*D2R,n=Math.max(3,Math.ceil(R*A/8)),p=[];for(let i=0;i<=n;i++){const t=A*i/n;p.push({x:R*Math.sin(t),y:side*R*(1-Math.cos(t)),s:R*t})}return p}
+const E=(x,y,h,s)=>({x,y,h,s});
+function gStraight(L){return{ends:[E(0,0,180,0),E(L,0,0,L)],paths:[line(0,0,L,0)],radius:Infinity,len:L}}
+function gArc(R,a){const p=arcPts(R,a,1),e=p[p.length-1];return{ends:[E(0,0,180,0),E(e.x,e.y,a,e.s)],paths:[p],radius:R,len:e.s}}
+function gTurnout(L,R,a,side){const p=arcPts(R,a,side),e=p[p.length-1];return{ends:[E(0,0,180,0),E(L,0,0,L),E(e.x,e.y,side*a,e.s)],paths:[line(0,0,L,0),p],radius:R,len:L}}
+function gThree(L,R,a){const l=arcPts(R,a,1),r=arcPts(R,a,-1),el=l[l.length-1],er=r[r.length-1];return{ends:[E(0,0,180,0),E(L,0,0,L),E(el.x,el.y,a,el.s),E(er.x,er.y,-a,er.s)],paths:[line(0,0,L,0),l,r],radius:R,len:L}}
+function gCross(L,a,dkwR){const c=L/2,dx=c*Math.cos(a*D2R),dy=c*Math.sin(a*D2R);
+  const g={ends:[E(0,0,180,0),E(L,0,0,L),E(c-dx,-dy,180+a,c-dx),E(c+dx,dy,a,c+dx)],paths:[line(0,0,L,0),line(c-dx,-dy,c+dx,dy)],radius:dkwR||Infinity,len:L,cross:true};
+  if(dkwR){ // Bögen der DKW nur zur Darstellung
+    g.deco=[line(0,0,c+dx,dy),line(c-dx,-dy,L,0)];
+  }
+  return g}
+function gFlex(f){const len=Math.min(900,Math.max(1,+f.len||900));if(!(f.r>0))return gStraight(len);const a=len/f.r/D2R;return gArc(f.r,a)}
+
+function gTurntable(R,bridge,step){const ends=[],cx=R;for(let k=0;k<Math.round(360/step);k++){const a=180+k*step,ar=a*D2R;ends.push(E(cx+R*Math.cos(ar),Math.abs(k*step%180)<1e-9?0:R*Math.sin(ar),norm(a),0))}
+  const pit=[];for(let i=0;i<=96;i++){const t=i/96*2*Math.PI;pit.push({x:cx+R*Math.cos(t),y:R*Math.sin(t),s:0})}
+  return{ends,paths:[line(cx-bridge/2,0,cx+bridge/2,0).map(q=>({x:q.x,y:q.y,s:0}))],pit,radius:Infinity,len:0,tt:true,R,cx}}
+// Dubins-Wege (kürzester Weg mit Mindestradius zwischen zwei Gleisenden)
+const TAU=2*Math.PI,md=a=>((a%TAU)+TAU)%TAU;
+function dubinsWords(a,b,d){const sa=Math.sin(a),sb=Math.sin(b),ca=Math.cos(a),cb=Math.cos(b),cab=Math.cos(a-b),W=[];let p2,t1,t2,p,tmp;
+  p2=2+d*d-2*cab+2*d*(sa-sb);if(p2>=0){t1=Math.atan2(cb-ca,d+sa-sb);W.push(["LSL",md(-a+t1),Math.sqrt(p2),md(b-t1)])}
+  p2=2+d*d-2*cab+2*d*(sb-sa);if(p2>=0){t1=Math.atan2(ca-cb,d-sa+sb);W.push(["RSR",md(a-t1),Math.sqrt(p2),md(-b+t1)])}
+  p2=-2+d*d+2*cab+2*d*(sa+sb);if(p2>=0){p=Math.sqrt(p2);t2=Math.atan2(-ca-cb,d+sa+sb)-Math.atan2(-2,p);W.push(["LSR",md(-a+t2),p,md(-md(b)+t2)])}
+  p2=d*d-2+2*cab-2*d*(sa+sb);if(p2>=0){p=Math.sqrt(p2);t2=Math.atan2(ca+cb,d-sa-sb)-Math.atan2(2,p);W.push(["RSL",md(a-t2),p,md(b-t2)])}
+  tmp=(6-d*d+2*cab+2*d*(sa-sb))/8;if(Math.abs(tmp)<=1){p=md(TAU-Math.acos(tmp));const t=md(a-Math.atan2(ca-cb,d-sa+sb)+p/2);W.push(["RLR",t,p,md(a-b-t+p)])}
+  tmp=(6-d*d+2*cab+2*d*(sb-sa))/8;if(Math.abs(tmp)<=1){p=md(TAU-Math.acos(tmp));const t=md(-a-Math.atan2(ca-cb,d+sa-sb)+p/2);W.push(["LRL",t,p,md(md(b)-a-t+p)])}
+  return W}
+function dubinsSim(x,y,th,segs,r){for(const [c,len] of segs){if(c==="S"){x+=len*Math.cos(th);y+=len*Math.sin(th)}else{const s=c==="L"?1:-1,dth=s*len/r;x+=r*s*(Math.sin(th+dth)-Math.sin(th));y+=r*s*(Math.cos(th)-Math.cos(th+dth));th+=dth}}return{x,y,th}}
+function dubins(q0,q1,r){const dx=q1.x-q0.x,dy=q1.y-q0.y,d=Math.hypot(dx,dy)/r,th=md(Math.atan2(dy,dx)),a=md(q0.th-th),b=md(q1.th-th);let best=null;
+  for(const [w,t,p,q] of dubinsWords(a,b,d)){const segs=[[w[0],t*r],[w[1],p*r],[w[2],q*r]],e=dubinsSim(q0.x,q0.y,q0.th,segs,r);const err=Math.hypot(e.x-q1.x,e.y-q1.y)+Math.abs(Math.atan2(Math.sin(e.th-q1.th),Math.cos(e.th-q1.th)))*r;const L=(t+p+q)*r;if(err<0.3&&(!best||L<best.L))best={w,segs,L}}return best}
+// Abschnitte (L/S/R mit Länge) -> Flexgleis-Stücke bis 900 mm
+function toSpecs(segs,r){const out=[];segs.forEach(([c,len])=>{if(len<0.05)return;const n=Math.ceil(len/900-1e-9);for(let i=0;i<n;i++)out.push({r:c==="S"?0:r,len:len/n,right:c==="R"})});return out}
+function chainSpecs(TE,specs,grad,level,mk){let te=TE;const ps=[];specs.forEach(sp=>{const p={id:mk(),art:"2205",flex:{r:sp.r,len:sp.len},x:0,y:0,rot:0,flip:sp.right,z:0,grad,level};attach(p,0,te);ps.push(p);te=worldEnds(p)[1]});return ps}
+function pip(pt,poly){let c=false;for(let i=0,j=poly.length-1;i<poly.length;j=i++){const a=poly[i],b=poly[j];if((a.y>pt.y)!==(b.y>pt.y)&&pt.x<(b.x-a.x)*(pt.y-a.y)/(b.y-a.y)+a.x)c=!c}return c}
+const ART={};const CATS=[];
+function add(cat,art,name,g,extra){ART[art]=Object.assign({art,name,cat,g},extra||{});let c=CATS.find(c=>c.n===cat);if(!c)CATS.push(c={n:cat,items:[]});c.items.push(art)}
+[["2200",180,"Gerade 1/1"],["2209",217.9,"Gerade"],["2206",168.9,"Gerade = Weichenlänge"],["2207",156,"Gerade"],["2201",90,"Gerade 1/2"],["2202",45,"Gerade 1/4"],["2293",41.3,"Gerade"],["2208",35.1,"Gerade"],["2203",30,"Gerade 1/6"],["2204",22.5,"Gerade 1/8"]].forEach(([a,L,n])=>add("Gerade Gleise",a,`${n} · ${String(L).replace(".",",")} mm`,gStraight(L)));
+[["2210",295.4,45,"Industriekreis"],["2221",360,30,"Normalkreis I"],["2223",360,15,"Normalkreis I · 1/2"],["2224",360,7.5,"Normalkreis I · 1/4"],["2231",424.6,30,"Normalkreis II"],["2232",424.6,22.5,"Gegenbogen Weiche"],["2233",424.6,15,"Normalkreis II · 1/2"],["2234",424.6,7.5,"Normalkreis II · 1/4"],["2235",424.6,3.75,"Normalkreis II · 1/8"],["2241",553.9,30,"Großkreis I"],["2251",618.5,30,"Großkreis II"],["2274",902.4,MIN26,"Gegenbogen schl. Weiche"]].forEach(([a,R,w,n])=>add("Gebogene Gleise",a,`${n} · R ${String(R).replace(".",",")} · ${fmtDeg(w)}`,gArc(R,w)));
+add("Weichen","2262","Weiche links · 168,9 · 22°30′",gTurnout(168.9,424.6,22.5,1),{pair:"2263",alt:"auch 2265"});
+add("Weichen","2263","Weiche rechts · 168,9 · 22°30′",gTurnout(168.9,424.6,22.5,-1),{pair:"2262",alt:"auch 2266"});
+add("Weichen","22715","Schlanke Weiche links · 225 · R 902,4",gTurnout(225,902.4,MIN26,1),{pair:"22716"});
+add("Weichen","22716","Schlanke Weiche rechts · 225 · R 902,4",gTurnout(225,902.4,MIN26,-1),{pair:"22715"});
+add("Weichen","2270","Dreiwegweiche · 168,9 · 2× 22°30′",gThree(168.9,424.6,22.5));
+add("Weichen","2260","Doppelte Kreuzungsweiche · 22°30′",gCross(168.9,22.5,424.6));
+add("Weichen","2275","Schlanke DKW · 14°26′ · R 902,4",gCross(225,MIN26,902.4));
+add("Kreuzungen","2258","Kreuzung 45° · 90 mm",gCross(90,45));
+add("Kreuzungen","2259","Kreuzung 22°30′ · 168,9 mm",gCross(168.9,22.5));
+add("Kreuzungen","2257","Kreuzung 14°26′ · 225 mm",gCross(225,MIN26));
+add("Funktionsgleise","2290","Anschlussgleis · 180 mm",gStraight(180));
+add("Funktionsgleise","2297","Entkupplungsgleis · 90 mm",gStraight(90));
+add("Funktionsgleise","2299","Schaltgleis gerade · 90 mm",gStraight(90));
+add("Funktionsgleise","2229","Schaltgleis gebogen · R 360 · 15°",gArc(360,15));
+add("Funktionsgleise","2239","Schaltgleis gebogen · R 424,6 · 15°",gArc(424.6,15));
+add("Drehscheibe","7286","Drehscheibe ferngesteuert · Ø 386 · Bühne 310 · 7,5°",gTurntable(193,310,7.5),{incl:6});
+add("Flexgleis","2205","Flexgleis · bis 900 mm, Radius frei",null,{flex:true});
+function fmtDeg(w){const d=Math.floor(w+1e-9),m=Math.round((w-d)*60);return m?`${d}°${String(m).padStart(2,"0")}′`:`${d}°`}
+
+function geom(p){const a=ART[p.art];return a.flex?gFlex(p.flex||{r:0,len:900}):a.g}
+function T(p){const c=Math.cos(p.rot*D2R),s=Math.sin(p.rot*D2R),m=p.flip?-1:1;return(x,y)=>({x:p.x+c*x-s*m*y,y:p.y+s*x+c*m*y})}
+function worldEnds(p){const g=geom(p),t=T(p),m=p.flip?-1:1;return g.ends.map((e,i)=>{const q=t(e.x,e.y);return{x:q.x,y:q.y,h:norm(p.rot+m*e.h),z:p.z+(p.grad||0)/100*e.s,i,pid:p.id}})}
+function worldPaths(p){const g=geom(p),t=T(p);const f=pts=>pts.map(e=>{const q=t(e.x,e.y);q.z=p.z+(p.grad||0)/100*e.s;return q});return{paths:g.paths.map(f),deco:(g.deco||[]).map(f),pit:g.pit?f(g.pit):null}}
+function attach(p,k,TE){const g=geom(p),m=p.flip?-1:1,e=g.ends[k];p.rot=norm(TE.h+180-m*e.h);const c=Math.cos(p.rot*D2R),s=Math.sin(p.rot*D2R),lx=e.x,ly=m*e.y;p.x=TE.x-(c*lx-s*ly);p.y=TE.y-(s*lx+c*ly);p.z=TE.z-(p.grad||0)/100*e.s}
+function hdiff(a,b){let d=Math.abs(norm(a)-norm(b));return d>180?360-d:d}
+function connections(pieces){const ends=[];pieces.forEach(p=>worldEnds(p).forEach(e=>ends.push(e)));const H=new Map(),key=(x,y)=>Math.round(x/4)+","+Math.round(y/4);
+  ends.forEach(e=>{const k=key(e.x,e.y);(H.get(k)||H.set(k,[]).get(k)).push(e)});const con=new Map();
+  ends.forEach(e=>{const cx=Math.round(e.x/4),cy=Math.round(e.y/4);for(let dx=-1;dx<=1;dx++)for(let dy=-1;dy<=1;dy++){const L=H.get((cx+dx)+","+(cy+dy));if(!L)continue;for(const o of L){if(o.pid===e.pid)continue;if(Math.hypot(o.x-e.x,o.y-e.y)<1.2&&hdiff(o.h,e.h+180)<2&&Math.abs(o.z-e.z)<30){con.set(e.pid+":"+e.i,o)}}}});
+  return{ends,con}}
+/*ENDCORE*/
+
+// ---------- Zustand ----------
+const COLORS=["#3d6fb6","#2c8c99","#2f8f5b","#b0852a","#7a4fb0","#c46a12","#5b6f86","#9a3d6b"];
+const KEY="moraro-gleisplaner-v1";
+let S,undo=[],redo=[],cache=null,problems=[],conn=null;
+let sel=null,selBoard=null,activeEnd=null,last=null,mode="sel",tab="sel",view={x:2000,y:1000,k:.25};
+const uid=()=>Math.random().toString(36).slice(2,9);
+function blank(){return{v:2,demo:false,room:[],levels:[{id:uid(),name:"Ebene 0",h:0,color:COLORS[0],minR:0,maxGrad:2.5,vis:true}],active:null,pieces:[],boards:[],set:{frameW:4000,frameH:2000,board:12,clear:59}}}
+function lev(id){return S.levels.find(l=>l.id===id)||S.levels[0]}
+function snap(){undo.push(JSON.stringify(S));if(undo.length>120)undo.shift();redo=[]}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
+
+function demo(){S=blank();S.demo=true;const L0=S.levels[0];L0.name="Ebene 0 · Schattenbahnhof";
+  const L1={id:uid(),name:"Ebene 1 · Paradestrecke",h:60,color:COLORS[1],minR:450,maxGrad:2.5,vis:true};S.levels.push(L1);
+  const L2={id:uid(),name:"Ebene 2 · Bergstrecke",h:240,color:COLORS[2],minR:0,maxGrad:2.5,vis:true};S.levels.push(L2);
+  S.active=L1.id;
+  const chain=(lv,x,y,seq)=>{let te=null;seq.forEach(a=>{const p={id:uid(),art:a,x,y,rot:0,flip:false,z:lv.h,grad:0,level:lv.id};if(te)attach(p,0,te);S.pieces.push(p);te=worldEnds(p)[1]})};
+  const ov=(c,n)=>[...Array(4).fill("2200"),...Array(n).fill(c),...Array(4).fill("2200"),...Array(n).fill(c)];
+  chain(L0,900,350,ov("2231",6));chain(L1,1500,700,ov("2241",6));
+  S.boards.push({id:uid(),level:L1.id,x:900,y:100,w:2000,h:1750});
+  const tt={id:uid(),art:"7286",x:3000,y:450,rot:0,flip:false,z:0,grad:0,level:L0.id};S.pieces.push(tt);
+  [0,4,8].forEach(i=>{const te=worldEnds(tt)[i+24];const p={id:uid(),art:"2200",x:0,y:0,rot:0,flip:false,z:0,grad:0,level:L0.id};attach(p,0,te);S.pieces.push(p)});
+  S.room=[{x:-300,y:-300},{x:4400,y:-300},{x:4400,y:2400},{x:1600,y:2400},{x:1600,y:3000},{x:-300,y:3000}];
+  sel=null;activeEnd=null}
+function load(){try{const t=localStorage.getItem(KEY);if(t){S=JSON.parse(t);return}}catch(e){}demo()}
+
+// ---------- Prüfung ----------
+function rebuild(){if(typeof syncView==="function"&&document.getElementById("bNr"))syncView();
+  cache=new Map();S.pieces.forEach(p=>{const w=worldPaths(p),ends=worldEnds(p);let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;w.paths.flat().forEach(q=>{x0=Math.min(x0,q.x);y0=Math.min(y0,q.y);x1=Math.max(x1,q.x);y1=Math.max(y1,q.y)});cache.set(p.id,{w,ends,bb:[x0,y0,x1,y1]})});
+  conn=connections(S.pieces);problems=check();save();render();ui()}
+function check(){const out=[],st=S.set,by=new Map(S.pieces.map(p=>[p.id,p]));
+  S.pieces.forEach(p=>{const L=lev(p.level),g=geom(p),a=ART[p.art];
+    if(L.minR>0&&g.radius<L.minR)out.push({sev:"err",pid:p.id,t:`Radius ${fmt(g.radius)} mm unter ${fmt(L.minR)} mm`,d:`${p.art} ${a.cross?"(Bögen der DKW)":g.ends.length>2?"(Abzweig)":""} · ${L.name}`});
+    if(L.maxGrad>0&&Math.abs(p.grad||0)>L.maxGrad+1e-9)out.push({sev:"err",pid:p.id,t:`Steigung ${fmt(Math.abs(p.grad))} % über ${fmt(L.maxGrad)} %`,d:`${p.art} · ${L.name}`});
+  });
+  // Höhensprung an Verbindungen
+  const seen=new Set();conn.con.forEach((o,k)=>{const [pid]=k.split(":"),e=cache.get(pid).ends.find(x=>pid+":"+x.i===k);if(Math.abs(e.z-o.z)>1){const kk=[pid,o.pid].sort().join();if(!seen.has(kk)){seen.add(kk);out.push({sev:"err",pid,x:e.x,y:e.y,t:`Höhensprung ${fmt(Math.abs(e.z-o.z))} mm am Stoß`,d:`${by.get(pid).art} ↔ ${by.get(o.pid).art}`})}}});
+  // Abtasten
+  const samp=[];S.pieces.forEach(p=>cache.get(p.id).w.paths.forEach((pts,pi)=>pts.forEach((q,qi)=>{if(qi%2===0||qi===pts.length-1)samp.push({x:q.x,y:q.y,z:q.z,pid:p.id})})));
+  const G=new Map(),C=50,gk=(x,y)=>x+","+y;samp.forEach(s=>{const k=gk(Math.floor(s.x/C),Math.floor(s.y/C));(G.get(k)||G.set(k,[]).get(k)).push(s)});
+  const adj=new Set();conn.con.forEach((o,k)=>{const pid=k.split(":")[0];adj.add(pid+"|"+o.pid)});
+  const col=new Map(),clr=new Map();
+  samp.forEach(s=>{const cx=Math.floor(s.x/C),cy=Math.floor(s.y/C);for(let dx=-1;dx<=1;dx++)for(let dy=-1;dy<=1;dy++){const L=G.get(gk(cx+dx,cy+dy));if(!L)continue;for(const o of L){if(o.pid<=s.pid||o.pid===s.pid)continue;const d=Math.hypot(o.x-s.x,o.y-s.y);const dz=Math.abs(o.z-s.z);
+    if(dz<5){if(d<24&&!adj.has(s.pid+"|"+o.pid)){const k=s.pid+"|"+o.pid;if(!col.has(k))col.set(k,{x:s.x,y:s.y,a:s.pid,b:o.pid})}}
+    else if(d<40){const lo=s.z<o.z?s:o,hi=s.z<o.z?o:s,c=dz-st.board,k=lo.pid+"|"+hi.pid;if(!clr.has(k)||clr.get(k).c>c)clr.set(k,{c,x:lo.x,y:lo.y,lo:lo.pid,hi:hi.pid})}}}});
+  const grp=(list,mk)=>{if(!list.length)return;if(list.length===1)return out.push(mk(list,true));out.push(mk(list,false))};
+  const cl=[...col.values()];grp(cl,(L,one)=>({sev:"err",pid:L[0].a,x:L[0].x,y:L[0].y,pts:L,t:one?"Gleise überschneiden sich":`Gleise überschneiden sich an ${L.length} Stellen`,d:one?`${by.get(L[0].a).art} und ${by.get(L[0].b).art} auf gleicher Höhe ohne Kreuzung`:`Gleiche Höhe ohne Kreuzung, u. a. ${by.get(L[0].a).art} und ${by.get(L[0].b).art}`}));
+  const cr=[...clr.values()].filter(v=>v.c<st.clear).sort((a,b)=>a.c-b.c);grp(cr,(L,one)=>({sev:"err",pid:L[0].lo,x:L[0].x,y:L[0].y,pts:L,t:one?`Lichte Höhe ${fmt(L[0].c)} mm unter ${fmt(st.clear)} mm`:`Lichte Höhe zu klein an ${L.length} Stellen (min. ${fmt(L[0].c)} mm)`,d:`Gleis über Gleis · Schienenoberkante-Abstand minus ${fmt(st.board)} mm Platte · nötig ${fmt(st.clear)} mm`}));
+  // Platten über Gleisen
+  const bc=new Map();S.boards.forEach(b=>{const L=lev(b.level);samp.forEach(s=>{if(L.h-st.board-s.z<-0.5)return;const top=L.h;if(top<=s.z+1)return;if(s.x>=b.x&&s.x<=b.x+b.w&&s.y>=b.y&&s.y<=b.y+b.h){const c=top-st.board-s.z;const k=s.pid;if(c<st.clear&&(!bc.has(k)||bc.get(k).c>c))bc.set(k,{c,x:s.x,y:s.y,b})}})});
+  const bg=new Map();bc.forEach((v,pid)=>{const k=v.b.id;const o=bg.get(k)||{b:v.b,c:1e9,pts:[],arts:new Set(),pid};o.c=Math.min(o.c,v.c);o.pts.push({x:v.x,y:v.y});o.arts.add(by.get(pid).art);bg.set(k,o)});
+  bg.forEach(o=>out.push({sev:"err",pid:o.pid,x:o.pts[0].x,y:o.pts[0].y,pts:o.pts,t:`Lichte Höhe ${fmt(o.c)} mm unter Platte „${lev(o.b.level).name}“`,d:`${o.pts.length} Gleise darunter (${[...o.arts].join(", ")}) · nötig ${fmt(st.clear)} mm`}));
+  // Raum
+  if(S.room&&S.room.length>=3){const outP=new Map();samp.forEach(s=>{if(!pip(s,S.room)&&!outP.has(s.pid))outP.set(s.pid,s)});
+    if(outP.size)out.push({sev:"err",pid:[...outP.keys()][0],x:[...outP.values()][0].x,y:[...outP.values()][0].y,pts:[...outP.values()].slice(0,40),t:`${outP.size} Gleise außerhalb des Raums`,d:"Gleismitte liegt außerhalb des Raum-Polygons."});
+    const ob=S.boards.filter(b=>[[b.x,b.y],[b.x+b.w,b.y],[b.x,b.y+b.h],[b.x+b.w,b.y+b.h]].some(([x,y])=>!pip({x,y},S.room)));
+    if(ob.length)out.push({sev:"warn",x:ob[0].x,y:ob[0].y,t:`${ob.length} Platte${ob.length>1?"n":""} ragt aus dem Raum`,d:ob.map(b=>`${fmt(b.w)} × ${fmt(b.h)} mm (${lev(b.level).name})`).join(" · ")})}
+  // offene Enden
+  let open=0;S.pieces.forEach(p=>{if(geom(p).tt)return;cache.get(p.id).ends.forEach(e=>{if(!conn.con.has(p.id+":"+e.i))open++})});
+  if(open)out.push({sev:"info",t:`${open} offene Gleisenden`,d:"Messing-Punkte im Plan. Mit Prellbock gewollt? Sonst anschließen."});
+  return out}
+const fmt=v=>!isFinite(v)?"gerade":(Math.round(v*10)/10).toLocaleString("de-AT");
+
+// ---------- Zeichnen ----------
+const cv=document.getElementById("cv"),ctx=cv.getContext("2d");let W=0,H=0,DPR=1;
+function css(n){return getComputedStyle(document.documentElement).getPropertyValue(n).trim()}
+function resize(){DPR=Math.min(2,window.devicePixelRatio||1);W=cv.clientWidth;H=cv.clientHeight;cv.width=W*DPR;cv.height=H*DPR;render()}
+const sx=x=>(x-view.x)*view.k+W/2, sy=y=>-(y-view.y)*view.k+H/2, wx=X=>(X-W/2)/view.k+view.x, wy=Y=>-(Y-H/2)/view.k+view.y;
+function render(){if(!cache)return;if(S.pieces.some(p=>!cache.has(p.id)))cacheOnly();ctx.setTransform(DPR,0,0,DPR,0,0);const P={paper:css("--paper"),ink:css("--ink"),grid:css("--grid"),gs:css("--grid-strong"),brass:css("--brass"),signal:css("--signal"),ball:css("--ballast"),muted:css("--muted")};
+  ctx.fillStyle=P.paper;ctx.fillRect(0,0,W,H);
+  // Raster 100 mm
+  const step=view.k*100>14?100:view.k*500>14?500:1000;ctx.lineWidth=1;
+  for(let x=Math.floor(wx(0)/step)*step;x<=wx(W);x+=step){ctx.strokeStyle=x%1000===0?P.gs:P.grid;ctx.beginPath();ctx.moveTo(sx(x)+.5,0);ctx.lineTo(sx(x)+.5,H);ctx.stroke()}
+  for(let y=Math.floor(wy(H)/step)*step;y<=wy(0);y+=step){ctx.strokeStyle=y%1000===0?P.gs:P.grid;ctx.beginPath();ctx.moveTo(0,sy(y)+.5);ctx.lineTo(W,sy(y)+.5);ctx.stroke()}
+  // Raum
+  const room=S.room||[];if(room.length>=3)drawRoom(room,true,P);
+  // Anlagenrahmen
+  if(S.set.frameW>0&&S.set.frameH>0){ctx.setLineDash([8,6]);ctx.strokeStyle=P.brass;ctx.lineWidth=1.5;ctx.strokeRect(sx(0),sy(S.set.frameH),S.set.frameW*view.k,S.set.frameH*view.k);ctx.setLineDash([]);
+  ctx.fillStyle=P.brass;ctx.font="500 11px 'IBM Plex Mono',monospace";ctx.fillText(`Anlage ${S.set.frameW/10} × ${S.set.frameH/10} cm`,sx(0)+4,sy(S.set.frameH)-6)}
+  const order=[...S.levels].sort((a,b)=>a.h-b.h),act=S.active;
+  order.forEach(L=>{if(!L.vis)return;const dim=L.id!==act;
+    S.boards.filter(b=>b.level===L.id).forEach(b=>{ctx.globalAlpha=dim?.08:.14;ctx.fillStyle=L.color;ctx.fillRect(sx(b.x),sy(b.y+b.h),b.w*view.k,b.h*view.k);ctx.globalAlpha=dim?.3:.8;ctx.strokeStyle=L.color;ctx.lineWidth=b.id===selBoard?2.5:1.2;ctx.strokeRect(sx(b.x),sy(b.y+b.h),b.w*view.k,b.h*view.k);ctx.globalAlpha=1;
+      if(view.k*b.w>90){ctx.fillStyle=L.color;ctx.font="500 11px 'IBM Plex Mono',monospace";ctx.fillText(`${fmt(b.w)} × ${fmt(b.h)}`,sx(b.x)+5,sy(b.y)-6)}});
+    const ps=S.pieces.filter(p=>p.level===L.id).sort((a,b)=>a.z-b.z);
+    ps.forEach(p=>drawPiece(p,L,dim,P))});
+  // Schienenstöße
+  if(S.set.showJoints!==false){const done=new Set(),len=Math.max(9,36*view.k);ctx.lineCap="round";
+    conn.con.forEach((o,k)=>{const pid=k.split(":")[0];const pk=[pid,o.pid].sort().join("|")+"|"+Math.round(o.x)+","+Math.round(o.y);if(done.has(pk))return;done.add(pk);
+      const a=S.pieces.find(p=>p.id===pid),b=S.pieces.find(p=>p.id===o.pid);if(!a||!b||!lev(a.level).vis)return;
+      const dim=a.level!==S.active&&b.level!==S.active,an=(o.h+90)*D2R,X=sx(o.x),Y=sy(o.y),dx=Math.cos(an)*len/2,dy=-Math.sin(an)*len/2;
+      ctx.globalAlpha=dim?.45:1;ctx.strokeStyle=P.paper;ctx.lineWidth=4.5;ctx.beginPath();ctx.moveTo(X-dx,Y-dy);ctx.lineTo(X+dx,Y+dy);ctx.stroke();
+      ctx.strokeStyle=P.ink;ctx.lineWidth=1.8;ctx.beginPath();ctx.moveTo(X-dx,Y-dy);ctx.lineTo(X+dx,Y+dy);ctx.stroke();ctx.globalAlpha=1});ctx.lineCap="butt"}
+  // Gleisnummern
+  if(S.set.showNr!==false){ctx.font="500 10.5px 'IBM Plex Mono',monospace";ctx.textAlign="center";ctx.textBaseline="middle";
+    S.pieces.forEach(p=>{const L=lev(p.level);if(!L.vis)return;const c=cache.get(p.id);if(!c)return;const pts=c.w.paths[0],n=pts.length,m=pts[Math.floor(n/2)],a=pts[Math.max(0,Math.floor(n/2)-1)],b=pts[Math.min(n-1,Math.floor(n/2)+1)];
+      let h=Math.atan2(b.y-a.y,b.x-a.x);const off=c.w.pit?0:Math.max(15*view.k+9,11);let X=sx(m.x)-Math.sin(h)*-off,Y=sy(m.y)-Math.cos(h)*off;if(c.w.pit){X=sx(m.x);Y=sy(m.y)+Math.max(14,30*view.k)}
+      const t=p.art,w=ctx.measureText(t).width+6;ctx.globalAlpha=p.level===S.active?1:.5;ctx.fillStyle=P.paper;ctx.fillRect(X-w/2,Y-7,w,14);ctx.fillStyle=p.id===sel?P.signal:P.ink;ctx.fillText(t,X,Y);ctx.globalAlpha=1});
+    ctx.textAlign="start";ctx.textBaseline="alphabetic"}
+  // Enden
+  S.pieces.forEach(p=>{const L=lev(p.level);if(!L.vis)return;const tt=geom(p).tt;cache.get(p.id).ends.forEach(e=>{if(conn.con.has(p.id+":"+e.i))return;const isA=activeEnd&&activeEnd.pid===p.id&&activeEnd.i===e.i;if(tt&&!isA){if(view.k>.35){ctx.beginPath();ctx.arc(sx(e.x),sy(e.y),2,0,7);ctx.fillStyle=P.brass;ctx.fill()}return}const r=isA?7:4.5;
+    ctx.beginPath();ctx.arc(sx(e.x),sy(e.y),r,0,7);ctx.fillStyle=isA?P.signal:P.brass;ctx.fill();
+    if(isA){const a=e.h*D2R;ctx.strokeStyle=P.signal;ctx.lineWidth=2.5;ctx.beginPath();ctx.moveTo(sx(e.x),sy(e.y));ctx.lineTo(sx(e.x)+Math.cos(a)*22,sy(e.y)-Math.sin(a)*22);ctx.stroke()}})});
+  // Probleme
+  problems.forEach(pr=>{if(pr.x==null)return;ctx.strokeStyle=P.signal;ctx.lineWidth=2;(pr.pts||[pr]).forEach(q=>{ctx.beginPath();ctx.arc(sx(q.x),sy(q.y),11,0,7);ctx.stroke()})});
+  if(mode==="room"&&roomDraft.length){const pts=[...roomDraft];if(mouse)pts.push(roomPt(mouse.X,mouse.Y,true));drawRoom(pts,false,P)}
+  if(mode==="connect"&&activeEnd&&mouse){const a=cache.get(activeEnd.pid);if(a){const e=a.ends[activeEnd.i];ctx.setLineDash([6,5]);ctx.strokeStyle=P.signal;ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(sx(e.x),sy(e.y));ctx.lineTo(mouse.X,mouse.Y);ctx.stroke();ctx.setLineDash([])}}
+  if(drag&&drag.type==="board"){ctx.strokeStyle=P.signal;ctx.setLineDash([5,4]);ctx.strokeRect(Math.min(drag.X0,drag.X1),Math.min(drag.Y0,drag.Y1),Math.abs(drag.X1-drag.X0),Math.abs(drag.Y1-drag.Y0));ctx.setLineDash([])}
+  status();dirChip()}
+function dirChip(){const el=$("dirChip");if(!el)return;if(!activeEnd||activeEnd.i===0||mode!=="sel"||(drag&&drag.type!=="none")){el.hidden=true;return}
+  const p=S.pieces.find(q=>q.id===activeEnd.pid);if(!p||!cache.get(p.id)){el.hidden=true;return}const g=geom(p),a=ART[p.art];const curved=!g.tt&&(isFinite(g.radius)&&!g.cross)||a.pair;if(!curved){el.hidden=true;return}
+  const e=cache.get(p.id).ends[activeEnd.i],X=sx(e.x),Y=sy(e.y);if(X<0||Y<0||X>W||Y>H){el.hidden=true;return}
+  const left=a.pair?/links/.test(a.name):(a.flex?!p.flip:!p.flip);$("dirTxt").textContent=a.pair?(left?"→ Weiche rechts":"→ Weiche links"):(left?"Bogen nach rechts":"Bogen nach links");
+  el.style.left=Math.min(W-90,Math.max(90,X))+"px";el.style.top=Math.max(110,Y)+"px";el.hidden=false}
+function drawRoom(pts,closed,P){ctx.beginPath();pts.forEach((q,i)=>i?ctx.lineTo(sx(q.x),sy(q.y)):ctx.moveTo(sx(q.x),sy(q.y)));if(closed){ctx.closePath();ctx.globalAlpha=.06;ctx.fillStyle=P.brass;ctx.fill();ctx.globalAlpha=1}
+  ctx.strokeStyle=P.ink;ctx.lineWidth=closed?3:2;ctx.setLineDash(closed?[]:[6,4]);ctx.stroke();ctx.setLineDash([]);
+  ctx.font="500 11px 'IBM Plex Mono',monospace";ctx.fillStyle=P.ink;const n=pts.length;for(let i=0;i<(closed?n:n-1);i++){const a=pts[i],b=pts[(i+1)%n],L=Math.hypot(b.x-a.x,b.y-a.y);if(L*view.k<40)continue;const mx=(sx(a.x)+sx(b.x))/2,my=(sy(a.y)+sy(b.y))/2;const t=`${fmt(L/10)} cm`;const w=ctx.measureText(t).width;ctx.fillStyle=P.paper;ctx.fillRect(mx-w/2-3,my-8,w+6,15);ctx.fillStyle=P.ink;ctx.fillText(t,mx-w/2,my+3)}
+  if(mode==="room"||(closed&&tab==="lev"))pts.forEach(q=>{ctx.fillStyle=P.paper;ctx.strokeStyle=P.ink;ctx.lineWidth=1.5;ctx.fillRect(sx(q.x)-4,sy(q.y)-4,8,8);ctx.strokeRect(sx(q.x)-4,sy(q.y)-4,8,8)})}
+function drawPiece(p,L,dim,P){const c=cache.get(p.id),k=view.k,isSel=p.id===sel;
+  if(c.w.pit){ctx.globalAlpha=dim?.45:1;ctx.beginPath();c.w.pit.forEach((q,i)=>i?ctx.lineTo(sx(q.x),sy(q.y)):ctx.moveTo(sx(q.x),sy(q.y)));ctx.closePath();ctx.fillStyle=css("--paper-2");ctx.fill();ctx.strokeStyle=isSel?P.signal:P.ink;ctx.lineWidth=isSel?3:2;ctx.stroke();
+    const g=geom(p),t=T(p);if(k>.15)g.ends.forEach(e=>{const ar=e.h*D2R,i0=t(g.cx+(g.R-10)*Math.cos(ar),(g.R-10)*Math.sin(ar)),q=cache.get(p.id).ends[g.ends.indexOf(e)];ctx.strokeStyle=P.muted;ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(sx(i0.x),sy(i0.y));ctx.lineTo(sx(q.x),sy(q.y));ctx.stroke()});
+    c.w.paths.forEach(pts=>{ctx.strokeStyle=L.color;ctx.lineWidth=Math.max(4,40*k);ctx.lineCap="butt";ctx.beginPath();pts.forEach((q,i)=>i?ctx.lineTo(sx(q.x),sy(q.y)):ctx.moveTo(sx(q.x),sy(q.y)));ctx.stroke();ctx.strokeStyle=P.ink;ctx.lineWidth=Math.max(1.5,18.5*k);ctx.stroke();if(k>.25){ctx.strokeStyle=L.color;ctx.lineWidth=14.5*k;ctx.stroke()}});
+    const m=c.w.paths[0][Math.floor(c.w.paths[0].length/2)];ctx.beginPath();ctx.arc(sx(m.x),sy(m.y),Math.max(3,12*k),0,7);ctx.fillStyle=P.ink;ctx.fill();
+    ctx.globalAlpha=1;return}
+  const stroke=(pts,w,col)=>{ctx.strokeStyle=col;ctx.lineWidth=w;ctx.beginPath();pts.forEach((q,i)=>i?ctx.lineTo(sx(q.x),sy(q.y)):ctx.moveTo(sx(q.x),sy(q.y)));ctx.stroke()};
+  ctx.lineCap="butt";ctx.lineJoin="round";ctx.globalAlpha=dim?.4:1;
+  if(isSel)c.w.paths.forEach(pts=>stroke(pts,Math.max(8,40*k),P.signal+"55"));
+  if(k<.12){c.w.paths.forEach(pts=>stroke(pts,2,L.color));ctx.globalAlpha=1;return}
+  c.w.paths.forEach(pts=>stroke(pts,30*k,L.color+"40"));
+  c.w.deco.forEach(pts=>stroke(pts,Math.max(1,18.5*k),P.ink+"55"));
+  c.w.paths.forEach(pts=>stroke(pts,Math.max(1.5,18.5*k),isSel?P.signal:P.ink));
+  if(k>.25)c.w.paths.forEach(pts=>stroke(pts,Math.max(.5,14.5*k),L.color+"cc"));
+  if(Math.abs(p.grad||0)>0&&k>.2){const m=c.w.paths[0][Math.floor(c.w.paths[0].length/2)];ctx.fillStyle=P.ink;ctx.font="600 10px 'IBM Plex Mono',monospace";ctx.fillText(`${p.grad>0?"↗":"↘"}${fmt(Math.abs(p.grad))}%`,sx(m.x)+8,sy(m.y)+Math.max(15*k+16,18))}
+  ctx.globalAlpha=1}
+function status(){const L=lev(S.active),k=view.k;const z=mouse?`x ${fmt(wx(mouse.X))} · y ${fmt(wy(mouse.Y))} mm`:"";
+  document.getElementById("status").innerHTML=`<span class="lvname">${esc(L.name)} · ${fmt(L.h)} mm</span><span>${S.pieces.length} Gleise</span><span>${z}</span>`}
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+// ---------- Aktionen ----------
+function freeEnds(p){return cache.get(p.id).ends.filter(e=>!conn.con.has(p.id+":"+e.i))}
+function travelGrad(TE){const tp=S.pieces.find(q=>q.id===TE.pid);if(!tp)return 0;return TE.i===0?-(tp.grad||0):(tp.grad||0)}
+function placePart(art,k=0,TEoverride,noSnap){if(!noSnap)snap();const L=lev(S.active);
+  const p={id:uid(),art,x:view.x,y:view.y,rot:0,flip:false,z:L.h,grad:0,level:L.id};if(ART[art].flex)p.flex={r:0,len:900};
+  const TE=TEoverride||(activeEnd&&cache.get(activeEnd.pid)?cache.get(activeEnd.pid).ends[activeEnd.i]:null);
+  if(TE){const tp=S.pieces.find(q=>q.id===TE.pid);p.level=tp.level;const g=travelGrad(TE);p.grad=k===0?g:-g;attach(p,k,TE)}
+  S.pieces.push(p);sel=p.id;selBoard=null;last={pid:p.id,k,TE};S.demo=false;rebuild();
+  const nx=freeEnds(p).find(e=>e.i!==k);activeEnd=nx?{pid:p.id,i:nx.i}:null;tab="sel";render();ui()}
+function toggleView(k){S.set[k]=S.set[k]===false;save();syncView();render();toast((k==="showNr"?"Gleisnummern ":"Schienenstöße ")+(S.set[k]?"eingeblendet":"ausgeblendet"))}
+function syncView(){[["bNr","showNr"],["bJoint","showJoints"]].forEach(([b,k])=>{const on=S.set[k]!==false;$(b).classList.toggle("on",on);$(b).setAttribute("aria-pressed",on)})}
+function placeLike(src){if(!activeEnd){toast("Kein freies Ende: ein Messing-Punkt antippen");return}const TE=cache.get(activeEnd.pid).ends[activeEnd.i];placePart(src.art);const p=S.pieces.find(q=>q.id===sel);if(!p||ART[src.art].pair)return;
+  if(src.flex)p.flex={...src.flex};p.flip=!!src.flip;attach(p,0,TE);rebuild();const nx=freeEnds(p).find(e=>e.i!==0);activeEnd=nx?{pid:p.id,i:nx.i}:null;render();ui()}
+function addSame(){const p=S.pieces.find(q=>q.id===sel);const lp=last&&S.pieces.find(q=>q.id===last.pid);const src=p&&!geom(p).tt?p:lp&&!geom(lp).tt?lp:null;if(!src){toast("Erst ein Gleis wählen");return}placeLike(src)}
+function placeMany(art){const n=repN;for(let i=0;i<n;i++){placePart(art,0,null,i>0);if(!activeEnd&&i<n-1){toast(`${i+1} gesetzt, kein freies Ende mehr`);break}}if(n>1)toast(`${n} × ${art} gesetzt`)}
+let repN=1,roomDraft=[],rampCfg={form:"gerade",R:489.2,g:2.5,target:null},conCfg={R:489.2,g:2.5};
+function roomPt(X,Y,shift){let x=Math.round(wx(X)/10)*10,y=Math.round(wy(Y)/10)*10;const last=roomDraft[roomDraft.length-1];if(last&&shift!==false&&ptrShift){const a=Math.round(Math.atan2(y-last.y,x-last.x)/(15*D2R))*15*D2R,d=Math.hypot(x-last.x,y-last.y);x=Math.round(last.x+d*Math.cos(a));y=Math.round(last.y+d*Math.sin(a))}return{x,y}}
+let ptrShift=false;
+function closeRoom(){if(roomDraft.length<3){toast("Mindestens 3 Punkte");return}snap();S.room=roomDraft.map(q=>({x:q.x,y:q.y}));roomDraft=[];setMode("sel");tab="lev";rebuild();toast("Raum angelegt")}
+function polyArea(P){let a=0;for(let i=0,j=P.length-1;i<P.length;j=i++)a+=(P[j].x+P[i].x)*(P[j].y-P[i].y);return Math.abs(a/2)}
+// Rampen
+function srcEnd(){return activeEnd&&cache.get(activeEnd.pid)?cache.get(activeEnd.pid).ends[activeEnd.i]:null}
+function srcLevel(){const e=srcEnd();return e?lev(S.pieces.find(p=>p.id===e.pid).level):lev(S.active)}
+function rampPlan(){const e=srcEnd();if(!e)return null;const L0=srcLevel(),T=lev(rampCfg.target)||S.levels.find(l=>l.id!==L0.id)||L0,dh=T.h-e.z,g=Math.max(.1,+rampCfg.g||2.5),len=Math.abs(dh)/(g/100),R=+rampCfg.R||489.2;
+  const turns=rampCfg.form==="gerade"?0:len/(TAU*R),perTurn=TAU*R*g/100,clr=perTurn-S.set.board;return{e,L0,T,dh,g,len,R,turns,perTurn,clr}}
+function buildRamp(){const r=rampPlan();if(!r)return;if(Math.abs(r.dh)<1){toast("Ziel liegt auf gleicher Höhe");return}snap();
+  const segs=rampCfg.form==="gerade"?[["S",r.len]]:[[rampCfg.form==="links"?"L":"R",r.len]];const grad=Math.sign(r.dh)*r.g;
+  const ps=chainSpecs(r.e,toSpecs(segs,r.R),grad,r.L0.id,uid);ps.forEach(p=>S.pieces.push(p));const lastP=ps[ps.length-1];sel=lastP.id;activeEnd={pid:lastP.id,i:1};S.demo=false;rebuild();toast(`Rampe ${fmt(r.len)} mm bis ${fmt(r.T.h)} mm eingezeichnet`)}
+function connPlan(a,b){const R=+conCfg.R||489.2,g=Math.max(.1,+conCfg.g||2.5);const q0={x:a.x,y:a.y,th:a.h*D2R},q1={x:b.x,y:b.y,th:(b.h+180)*D2R};const d=dubins(q0,q1,R);if(!d)return{err:"Kein Weg mit diesem Radius gefunden."};
+  const dh=b.z-a.z,need=Math.abs(dh)/(g/100);let loops=0;if(d.L<need)loops=Math.ceil((need-d.L)/(TAU*R)-1e-9);const L=d.L+loops*TAU*R,grad=L>0?dh/L*100:0;const first=d.segs.find(s=>s[1]>0.05&&s[0]!=="S");const ld=first?first[0]:"L";
+  return{R,g,d,dh,loops,L,grad,ld,perTurn:loops?TAU*R*Math.abs(grad)/100:0}}
+function buildConn(a,b){const c=connPlan(a,b);if(c.err){toast(c.err);return}snap();const segs=[];for(let i=0;i<c.loops;i++)segs.push([c.ld,TAU*c.R]);c.d.segs.forEach(s=>segs.push(s));
+  const ps=chainSpecs(a,toSpecs(segs,c.R),c.grad,S.pieces.find(p=>p.id===a.pid).level,uid);ps.forEach(p=>S.pieces.push(p));sel=ps[ps.length-1].id;activeEnd=null;S.demo=false;closeSheet();setMode("sel");rebuild();
+  toast(`Verbindung ${fmt(c.L)} mm · ${fmt(Math.abs(c.grad))} %${c.loops?` · ${c.loops} Wendel-Windung${c.loops>1?"en":""}`:""}`)}
+function connSheet(a,b){const render=()=>{const c=connPlan(a,b);$("cRes").innerHTML=c.err?`<span style="color:var(--err)">${c.err}</span>`:
+    `<table><tbody><tr><td>Höhenunterschied</td><td class="n">${fmt(c.dh)} mm</td></tr><tr><td>Kürzester Weg (${c.d.w})</td><td class="n">${fmt(c.d.L)} mm</td></tr>
+    ${c.loops?`<tr><td>Wendel davor</td><td class="n">${c.loops} × ${fmt(TAU*c.R)} mm</td></tr><tr><td>Höhe je Windung</td><td class="n">${fmt(c.perTurn)} mm${c.perTurn-S.set.board<S.set.clear?' <b style="color:var(--err)">zu wenig – Radius erhöhen</b>':""}</td></tr>`:""}
+    <tr><td>Gesamtlänge</td><td class="n">${fmt(c.L)} mm</td></tr><tr><td>Steigung</td><td class="n">${fmt(Math.abs(c.grad))} %</td></tr><tr><td>Flexgleis 2205</td><td class="n">${toSpecs([...Array(c.loops).fill([c.ld,TAU*c.R]),...c.d.segs],c.R).length} Stücke</td></tr></tbody></table>`};
+  sheet("Enden verbinden",`<p class="muted">Kürzester Weg mit Mindestradius aus Flexgleis. Reicht die Länge für die Steigung nicht, wird vorne eine Wendel eingefügt.</p>
+    <div class="row"><label>Radius</label><input type="number" id="cR" value="${conCfg.R}" step="1"><span class="muted">mm</span></div><div class="row"><label>Max. Steigung</label><input type="number" id="cG" value="${conCfg.g}" step="0.1"><span class="muted">%</span></div>
+    <div id="cRes"></div><div class="row"><button class="btn pri" id="cGo">Einzeichnen</button></div>`,()=>{render();$("cR").oninput=e=>{conCfg.R=+e.target.value;render()};$("cG").oninput=e=>{conCfg.g=+e.target.value;render()};$("cGo").onclick=()=>buildConn(a,b)})}
+function cycleEnd(){if(!last||!S.pieces.find(p=>p.id===last.pid)||!last.TE){toast("Erst ein Gleis an ein Ende ansetzen");return}const p=S.pieces.find(q=>q.id===last.pid),n=geom(p).ends.length;const k=(last.k+1)%n;
+  S.pieces=S.pieces.filter(q=>q.id!==p.id);rebuild();undo.pop();activeEnd={pid:last.TE.pid,i:last.TE.i};placePart(p.art,k,last.TE)}
+function flipActive(){if(activeEnd&&activeEnd.i!==0){sel=activeEnd.pid}flipSel();if(sel){const p=S.pieces.find(q=>q.id===sel);const fe=freeEnds(p).find(e=>e.i!==0);if(fe)activeEnd={pid:p.id,i:fe.i};render();ui()}}
+function flipSel(){const p=S.pieces.find(q=>q.id===sel);if(!p)return;snap();const a=ART[p.art];if(a.pair)p.art=a.pair;else p.flip=!p.flip;
+  if(last&&last.pid===p.id&&last.TE&&last.k!==0)attach(p,last.k,last.TE);rebuild()}
+function group(pid){const g=new Set([pid]),st=[pid];while(st.length){const id=st.pop();conn.con.forEach((o,k)=>{const a=k.split(":")[0];if(a===id&&!g.has(o.pid)){g.add(o.pid);st.push(o.pid)}})}return g}
+function rotateSel(deg){const p=S.pieces.find(q=>q.id===sel);if(!p)return;snap();const g=group(p.id),c=cache.get(p.id).w.paths[0][0];
+  S.pieces.forEach(q=>{if(!g.has(q.id))return;const dx=q.x-c.x,dy=q.y-c.y,cs=Math.cos(deg*D2R),sn=Math.sin(deg*D2R);q.x=c.x+dx*cs-dy*sn;q.y=c.y+dx*sn+dy*cs;q.rot=norm(q.rot+deg)});rebuild()}
+function delSel(){if(!sel&&!selBoard&&roomSel!=null&&S.room&&S.room.length>3){snap();S.room.splice(roomSel,1);roomSel=null;rebuild();return}if(sel){snap();S.pieces=S.pieces.filter(p=>p.id!==sel);if(activeEnd&&activeEnd.pid===sel)activeEnd=null;sel=null;rebuild()}else if(selBoard){snap();S.boards=S.boards.filter(b=>b.id!==selBoard);selBoard=null;rebuild()}}
+function doUndo(){if(!undo.length)return;redo.push(JSON.stringify(S));S=JSON.parse(undo.pop());sel=null;activeEnd=null;rebuild()}
+function doRedo(){if(!redo.length)return;undo.push(JSON.stringify(S));S=JSON.parse(redo.pop());sel=null;activeEnd=null;rebuild()}
+function fit(){let x0=0,y0=0,x1=S.set.frameW,y1=S.set.frameH;(S.room||[]).forEach(q=>{x0=Math.min(x0,q.x);y0=Math.min(y0,q.y);x1=Math.max(x1,q.x);y1=Math.max(y1,q.y)});cache.forEach(c=>{x0=Math.min(x0,c.bb[0]);y0=Math.min(y0,c.bb[1]);x1=Math.max(x1,c.bb[2]);y1=Math.max(y1,c.bb[3])});
+  const narrow=W<861,padL=narrow?20:260,padR=narrow?20:340,padT=80,padB=narrow&&!($("lib").classList.contains("closed")&&$("side").classList.contains("closed"))?H*.5:70;view.k=Math.min((W-padL-padR)/(x1-x0),(H-padT-padB)/(y1-y0))*.95;view.x=(x0+x1)/2-(padL-padR)/2/view.k;view.y=(y0+y1)/2+(padT-padB)/2/view.k;render()}
+function toast(t){const e=document.getElementById("toast");e.textContent=t;e.classList.add("show");clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove("show"),2200)}
+
+// ---------- Eingabe ----------
+let drag=null,mouse=null;const ptrs=new Map();
+function hitEnd(X,Y){let best=null,bd=14;S.pieces.forEach(p=>{if(!lev(p.level).vis)return;cache.get(p.id).ends.forEach(e=>{if(conn.con.has(p.id+":"+e.i))return;const d=Math.hypot(sx(e.x)-X,sy(e.y)-Y);if(d<bd){bd=d;best={pid:p.id,i:e.i}}})});return best}
+function hitPiece(X,Y){const x=wx(X),y=wy(Y),tol=Math.max(16,12/view.k);let best=null,bd=tol;const vis=new Set(S.levels.filter(l=>l.vis).map(l=>l.id));
+  S.pieces.forEach(p=>{if(!vis.has(p.level))return;const c=cache.get(p.id);if(x<c.bb[0]-tol-200||x>c.bb[2]+tol+200||y<c.bb[1]-tol-200||y>c.bb[3]+tol+200)return;(c.w.pit?[...c.w.paths,c.w.pit]:c.w.paths).forEach(pts=>pts.forEach(q=>{const d=Math.hypot(q.x-x,q.y-y)-(p.level===S.active?2:0);if(d<bd){bd=d;best=p.id}}))});return best}
+function hitBoard(X,Y){const x=wx(X),y=wy(Y);const bs=S.boards.filter(b=>lev(b.level).vis&&x>=b.x&&x<=b.x+b.w&&y>=b.y&&y<=b.y+b.h);bs.sort((a,b)=>(a.level===S.active?-1:0)-(b.level===S.active?-1:0));return bs[0]?bs[0].id:null}
+cv.addEventListener("pointerdown",ev=>{cv.setPointerCapture(ev.pointerId);ptrs.set(ev.pointerId,{X:ev.offsetX,Y:ev.offsetY});
+  if(ptrs.size===2){const [a,b]=[...ptrs.values()];drag={type:"pinch",d:Math.hypot(a.X-b.X,a.Y-b.Y),k:view.k,cx:(a.X+b.X)/2,cy:(a.Y+b.Y)/2,vx:view.x,vy:view.y};return}
+  const X=ev.offsetX,Y=ev.offsetY;
+  ptrShift=ev.shiftKey;
+  if(mode==="board"){drag={type:"board",X0:X,Y0:Y,X1:X,Y1:Y};return}
+  if(mode==="room"){const f=roomDraft[0];if(f&&roomDraft.length>=3&&Math.hypot(sx(f.x)-X,sy(f.y)-Y)<14){closeRoom();return}roomDraft.push(roomPt(X,Y));render();drag={type:"none"};return}
+  if(mode==="connect"){const he=hitEnd(X,Y);drag={type:"none"};if(he&&activeEnd&&!(he.pid===activeEnd.pid&&he.i===activeEnd.i)){const a=cache.get(activeEnd.pid).ends[activeEnd.i],b=cache.get(he.pid).ends[he.i];setMode("sel");connSheet(a,b)}else toast("Ziel: ein offenes Gleisende antippen");return}
+  if(S.room&&S.room.length){const vi=S.room.findIndex(q=>Math.hypot(sx(q.x)-X,sy(q.y)-Y)<9);if(vi>=0&&tab==="lev"){roomSel=vi;drag={type:"rv",i:vi,moved:false};return}}
+  const he=hitEnd(X,Y);if(he){drag={type:"none"};if(activeEnd&&he.pid===activeEnd.pid&&he.i===activeEnd.i){const src=S.pieces.find(q=>q.id===he.pid);const lp=last&&S.pieces.find(q=>q.id===last.pid);const s2=src&&!geom(src).tt?src:lp&&!geom(lp).tt?lp:null;if(s2)placeLike(s2);else toast("Gleis aus der Bibliothek wählen");return}
+    activeEnd=he;sel=he.pid;selBoard=null;render();ui();return}
+  const hp=hitPiece(X,Y);if(hp){sel=hp;selBoard=null;roomSel=null;{const fe=freeEnds(S.pieces.find(p=>p.id===hp));const pick=fe.find(e=>e.i!==0)||fe[0];if(pick&&!geom(S.pieces.find(p=>p.id===hp)).tt)activeEnd={pid:hp,i:pick.i}}const g=group(hp);drag={type:"move",X,Y,g,orig:S.pieces.filter(p=>g.has(p.id)).map(p=>({id:p.id,x:p.x,y:p.y})),moved:false};render();ui();return}
+  const hb=hitBoard(X,Y);if(hb&&ev.detail>=1&&ev.altKey!==true){selBoard=hb;sel=null;const b=S.boards.find(b=>b.id===hb);drag={type:"bmove",X,Y,b,ox:b.x,oy:b.y,moved:false};render();ui();return}
+  sel=null;selBoard=null;drag={type:"pan",X,Y,vx:view.x,vy:view.y,moved:false};cv.classList.add("pan");ui()});
+cv.addEventListener("pointermove",ev=>{mouse={X:ev.offsetX,Y:ev.offsetY};ptrShift=ev.shiftKey;if(mode==="room"||mode==="connect")render();if(ptrs.has(ev.pointerId))ptrs.set(ev.pointerId,{X:ev.offsetX,Y:ev.offsetY});
+  if(!drag){status();return}const X=ev.offsetX,Y=ev.offsetY;
+  if(drag.type==="pinch"&&ptrs.size===2){const [a,b]=[...ptrs.values()];const d=Math.hypot(a.X-b.X,a.Y-b.Y);view.k=Math.min(4,Math.max(.03,drag.k*d/drag.d));const cx=(a.X+b.X)/2,cy=(a.Y+b.Y)/2;view.x=drag.vx-(cx-drag.cx)/view.k;view.y=drag.vy+(cy-drag.cy)/view.k;render();return}
+  if(drag.type==="pan"){view.x=drag.vx-(X-drag.X)/view.k;view.y=drag.vy+(Y-drag.Y)/view.k;drag.moved=true;render()}
+  else if(drag.type==="move"){const dx=(X-drag.X)/view.k,dy=-(Y-drag.Y)/view.k;if(!drag.moved&&Math.hypot(X-drag.X,Y-drag.Y)<4)return;if(!drag.moved){snap();drag.moved=true}
+    drag.orig.forEach(o=>{const p=S.pieces.find(q=>q.id===o.id);p.x=o.x+dx;p.y=o.y+dy});cache=null;cacheOnly();render()}
+  else if(drag.type==="bmove"){if(!drag.moved&&Math.hypot(X-drag.X,Y-drag.Y)<4)return;if(!drag.moved){snap();drag.moved=true}drag.b.x=Math.round(drag.ox+(X-drag.X)/view.k);drag.b.y=Math.round(drag.oy-(Y-drag.Y)/view.k);render()}
+  else if(drag.type==="board"){drag.X1=X;drag.Y1=Y;render()}
+  else if(drag.type==="rv"){if(!drag.moved){snap();drag.moved=true}S.room[drag.i]={x:Math.round(wx(X)/10)*10,y:Math.round(wy(Y)/10)*10};render()}});
+function cacheOnly(){cache=new Map();S.pieces.forEach(p=>{const w=worldPaths(p),ends=worldEnds(p);let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;w.paths.flat().forEach(q=>{x0=Math.min(x0,q.x);y0=Math.min(y0,q.y);x1=Math.max(x1,q.x);y1=Math.max(y1,q.y)});cache.set(p.id,{w,ends,bb:[x0,y0,x1,y1]})});conn=connections(S.pieces)}
+function trySnap(g){let best=null;const tol=Math.max(15,14/view.k);
+  S.pieces.forEach(p=>{if(!g.has(p.id))return;cache.get(p.id).ends.forEach(e=>{if(conn.con.has(p.id+":"+e.i))return;S.pieces.forEach(q=>{if(g.has(q.id))return;cache.get(q.id).ends.forEach(f=>{if(conn.con.has(q.id+":"+f.i))return;const d=Math.hypot(e.x-f.x,e.y-f.y),hd=hdiff(e.h,f.h+180);if(d<tol&&hd<10&&(!best||d<best.d))best={d,e,f}})})})});
+  if(!best)return false;const {e,f}=best;let rot=norm(f.h+180-e.h);if(rot>180)rot-=360;const cs=Math.cos(rot*D2R),sn=Math.sin(rot*D2R);
+  S.pieces.forEach(p=>{if(!g.has(p.id))return;const dx=p.x-e.x,dy=p.y-e.y;p.x=f.x+dx*cs-dy*sn;p.y=f.y+dx*sn+dy*cs;p.rot=norm(p.rot+rot);p.z+=f.z-e.z});return true}
+cv.addEventListener("pointerup",ev=>{ptrs.delete(ev.pointerId);cv.classList.remove("pan");if(!drag)return;
+  if(drag.type==="move"&&drag.moved){cacheOnly();if(trySnap(drag.g))toast("Angeschlossen");rebuild()}
+  else if(drag.type==="bmove"&&drag.moved){rebuild()}
+  else if(drag.type==="rv"){if(drag.moved)rebuild();else ui()}
+  else if(drag.type==="pan"&&!drag.moved){activeEnd=null;render()}
+  else if(drag.type==="board"){const x0=wx(Math.min(drag.X0,drag.X1)),x1=wx(Math.max(drag.X0,drag.X1)),y1=wy(Math.min(drag.Y0,drag.Y1)),y0=wy(Math.max(drag.Y0,drag.Y1));
+    if(x1-x0>30&&y1-y0>30){snap();const b={id:uid(),level:S.active,x:Math.round(x0/5)*5,y:Math.round(y0/5)*5,w:Math.round((x1-x0)/5)*5,h:Math.round((y1-y0)/5)*5};S.boards.push(b);selBoard=b.id;sel=null;tab="sel";rebuild()}else render()}
+  if(ptrs.size===0)drag=null});
+cv.addEventListener("dblclick",()=>{if(mode==="room"){roomDraft.pop();closeRoom()}});
+cv.addEventListener("pointercancel",ev=>{ptrs.delete(ev.pointerId);drag=null});
+cv.addEventListener("wheel",ev=>{ev.preventDefault();const f=Math.exp(-ev.deltaY*.0015),x=wx(ev.offsetX),y=wy(ev.offsetY);view.k=Math.min(4,Math.max(.03,view.k*f));view.x=x-(ev.offsetX-W/2)/view.k;view.y=y+(ev.offsetY-H/2)/view.k;render()},{passive:false});
+document.addEventListener("keydown",ev=>{if(/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName))return;const k=ev.key.toLowerCase();
+  if((ev.ctrlKey||ev.metaKey)&&k==="z"){ev.preventDefault();ev.shiftKey?doRedo():doUndo();return}
+  if(k==="delete"||k==="backspace"){delSel();ev.preventDefault()}else if(k==="r")rotateSel(ev.shiftKey?7.5:-7.5);else if(k==="f")flipActive();else if(k==="c")cycleEnd();else if(k==="+"||k===" "){ev.preventDefault();addSame()}else if(k==="enter"&&mode==="room")closeRoom();else if(k==="escape"){if(mode==="room"&&roomDraft.length){roomDraft=[];render();return}sel=null;selBoard=null;activeEnd=null;setMode("sel");render();ui()}else if(k==="v")setMode("sel");else if(k==="p")setMode("board");else if(k==="o")setMode("room");else if(k==="n")toggleView("showNr");else if(k==="j")toggleView("showJoints")});
+
+// ---------- Oberfläche ----------
+const $=id=>document.getElementById(id);
+function setMode(m){if(mode==="room"&&m!=="room")roomDraft=[];mode=m;$("mSel").classList.toggle("on",m==="sel");$("mBoard").classList.toggle("on",m==="board");$("mRoom").classList.toggle("on",m==="room");cv.classList.toggle("board",m==="board"||m==="room"||m==="connect");
+  if(m==="board")toast("Rechteck aufziehen: Platte für "+lev(S.active).name);if(m==="room")toast("Raumecken antippen · Umschalt = 15°-Raster · ersten Punkt oder Doppeltipp schließt");if(m==="connect")toast("Ziel: ein offenes Gleisende antippen");render()}
+function partIcon(art){const c=document.createElement("canvas");c.width=200;c.height=68;const x=c.getContext("2d"),p={id:"i",art,x:0,y:0,rot:0,flip:false,z:0,grad:0,flex:{r:600,len:500}},w=worldPaths(p);
+  let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;[...w.paths.flat(),...(w.pit||[])].forEach(q=>{x0=Math.min(x0,q.x);y0=Math.min(y0,q.y);x1=Math.max(x1,q.x);y1=Math.max(y1,q.y)});
+  const k=Math.min(180/Math.max(1,x1-x0),48/Math.max(1,y1-y0),1.1),ox=100-(x0+x1)/2*k,oy=34+(y0+y1)/2*k;x.lineCap="round";
+  const col=css("--ink");if(w.pit){x.strokeStyle=col;x.lineWidth=3;x.beginPath();w.pit.forEach((q,i)=>i?x.lineTo(ox+q.x*k,oy-q.y*k):x.moveTo(ox+q.x*k,oy-q.y*k));x.stroke()}[w.deco,w.paths].forEach((set,j)=>set.forEach(pts=>{x.strokeStyle=j?col:col+"55";x.lineWidth=j?6:4;x.beginPath();pts.forEach((q,i)=>i?x.lineTo(ox+q.x*k,oy-q.y*k):x.moveTo(ox+q.x*k,oy-q.y*k));x.stroke()}));
+  return c}
+function buildLib(){const box=$("libList");box.innerHTML="";CATS.forEach(c=>{const h=document.createElement("div");h.className="cat";h.textContent=c.n;box.appendChild(h);const g=document.createElement("div");g.className="parts";
+  c.items.forEach(a=>{const b=document.createElement("button");b.className="part";b.title=ART[a].name;b.appendChild(partIcon(a));b.insertAdjacentHTML("beforeend",`<b>${a}</b><span>${esc(ART[a].name.split(" · ")[0])}</span>`);b.onclick=()=>{placeMany(a);if(W<861)$("lib").classList.add("closed")};g.appendChild(b)});box.appendChild(g)})}
+function ui(){$("bDel").disabled=!sel&&!selBoard&&roomSel==null;["bRotL","bRotR","bFlip"].forEach(i=>$(i).disabled=!sel);$("bUndo").disabled=!undo.length;$("bRedo").disabled=!redo.length;
+  const ne=problems.filter(p=>p.sev==="err").length;["badgeT","badgeM"].forEach(i=>{$(i).hidden=!ne;$(i).textContent=ne});
+  document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("on",t.dataset.tab===tab));
+  const B=$("tabBody");B.innerHTML=tab==="sel"?tabSel():tab==="lev"?tabLev():tab==="chk"?tabChk():tabMat();bindTab()}
+function num(id,v,step=1,extra=""){return`<input type="number" id="${id}" value="${Math.round(v*100)/100}" step="${step}" ${extra}>`}
+function tabSel(){const p=S.pieces.find(q=>q.id===sel),b=S.boards.find(q=>q.id===selBoard);let h="";
+  if(S.demo)h+=`<div class="sec"><div class="row"><span class="demo">Beispiel</span></div><p class="muted">Ein Beispielplan mit drei Ebenen ist geladen. Er zeigt die Prüfungen: Ebene 1 liegt 60 mm über Ebene 0, abzüglich 12 mm Platte bleiben 48 mm lichte Höhe.</p><button class="btn" id="newPlan">Leeren Plan beginnen</button></div>`;
+  if(p){const a=ART[p.art],g=geom(p),L=lev(p.level),ends=cache.get(p.id).ends;
+    h+=`<div class="sec"><h3>${p.art} · ${esc(a.name.split(" · ")[0])}</h3><div class="muted">${esc(a.name)}${a.alt?` (${a.alt}, gleiche Maße)`:""}</div>
+    <div class="row"><label>Ebene</label><select id="pLev">${S.levels.map(l=>`<option value="${l.id}" ${l.id===p.level?"selected":""}>${esc(l.name)}</option>`).join("")}</select></div>
+    <div class="row"><label>Höhe Anfang</label>${num("pZ",p.z,1)}<span class="muted">mm</span></div>
+    <div class="row"><label>Steigung</label>${num("pG",p.grad||0,.1)}<span class="muted">%</span><button class="ibtn" data-info="gInfo">i</button></div>
+    <div class="info" id="gInfo">Positiv = steigt vom Anfang (Ende 1) weg. Neue Gleise am Ende übernehmen die Steigung, so baust du eine Rampe einfach weiter. Auf 0 setzen, wo die Rampe endet.</div>
+    ${a.flex?`<div class="row"><label>Länge</label>${num("fL",p.flex.len,1,'min="10" max="900"')}<span class="muted">mm</span></div><div class="row"><label>Radius</label>${num("fR",p.flex.r,1,'min="0"')}<span class="muted">mm (0 = gerade)</span></div>`:""}
+    <div class="row muted mono">Radius ${fmt(g.radius)}${isFinite(g.radius)?" mm":""} · Enden ${ends.map(e=>fmt(e.z)).join(" / ")} mm</div>
+    <div class="row"><button class="btn" id="pRise">Ganze Strecke anheben …</button></div></div>`;
+    if(rampChain(p.id).some(c=>Math.abs(c.p.grad||0)>1e-9))h+=`<div class="sec"><div class="row" style="justify-content:space-between"><h3 style="margin:0">Seitenansicht Rampe</h3><button class="btn" id="profBig">Groß</button></div>${profileSVG(p.id,300,180)}</div>`}
+  else if(b){h+=`<div class="sec"><h3>Platte</h3><div class="row"><label>Ebene</label><select id="bLev">${S.levels.map(l=>`<option value="${l.id}" ${l.id===b.level?"selected":""}>${esc(l.name)}</option>`).join("")}</select></div>
+    <div class="row"><label>Breite</label>${num("bW",b.w,5)}<span class="muted">mm</span></div><div class="row"><label>Tiefe</label>${num("bH",b.h,5)}<span class="muted">mm</span></div>
+    <div class="row"><label>Lage x / y</label>${num("bX",b.x,5)}${num("bY",b.y,5)}</div></div>`}
+  else h+=`<div class="sec"><h3>Nichts ausgewählt</h3><p class="muted">Gleis antippen zum Bearbeiten. Ein Gleis ziehen verschiebt die ganze verbundene Strecke; an einem offenen Ende rastet sie ein.</p></div>`;
+  const se=srcEnd();
+  if(se){const r=rampPlan(),others=S.levels.filter(l=>Math.abs(l.h-se.z)>=1);if(!rampCfg.target||!others.find(l=>l.id===rampCfg.target))rampCfg.target=others[0]?others[0].id:null;
+    h+=`<div class="sec"><h3>Weiter ab dem roten Ende</h3><div class="muted mono">Höhe ${fmt(se.z)} mm · Richtung ${fmt(se.h)}°</div>
+    <div class="row"><button class="btn" id="conGo"><svg viewBox="0 0 24 24"><path d="M5 18c0-8 14-4 14-12"/><circle cx="5" cy="18" r="2"/><circle cx="19" cy="6" r="2"/></svg>Mit anderem Ende verbinden</button></div>
+    ${others.length?`<h3 style="margin-top:12px">Rampe zu einer Ebene</h3>
+    <div class="row"><label>Ziel</label><select id="rT">${others.map(l=>`<option value="${l.id}" ${l.id===rampCfg.target?"selected":""}>${esc(l.name)} · ${fmt(l.h)} mm</option>`).join("")}</select></div>
+    <div class="row"><label>Form</label><select id="rF"><option value="gerade" ${rampCfg.form==="gerade"?"selected":""}>gerade</option><option value="links" ${rampCfg.form==="links"?"selected":""}>Wendel links</option><option value="rechts" ${rampCfg.form==="rechts"?"selected":""}>Wendel rechts</option></select></div>
+    ${rampCfg.form!=="gerade"?`<div class="row"><label>Radius</label>${num("rR",rampCfg.R,1)}<span class="muted">mm</span></div>`:""}
+    <div class="row"><label>Steigung</label>${num("rS",rampCfg.g,.1)}<span class="muted">%</span></div>
+    <div class="row mono" id="rOut">${rampTxt(rampPlan())}</div>
+    <div class="row"><button class="btn pri" id="rGo">Rampe einzeichnen</button></div>`:`<p class="muted">Für eine Rampe zuerst eine zweite Ebene anlegen.</p>`}</div>`}
+  h+=`<div class="sec"><h3>Rampenrechner</h3><div class="row"><label>Höhenunterschied</label>${num("rH",rampH,1)}<span class="muted">mm</span></div><div class="row"><label>Steigung</label>${num("rG",rampG,.1)}<span class="muted">%</span></div>
+    <div class="row mono" id="rCalc">Rampenlänge ${fmt(rampH/(rampG/100))} mm ≈ ${fmt(rampH/(rampG/100)/180)} × 2200</div></div>`;
+  return h}
+let rampH=60,rampG=2.5;
+function rampChain(pid){const by=new Map(S.pieces.map(p=>[p.id,p])),nb=(p,i)=>{const o=conn.con.get(p.id+":"+i);return o?{p:by.get(o.pid),i:o.i}:null},other=(p,i)=>geom(p).tt?null:(i===0?1:0),isR=p=>Math.abs(p.grad||0)>1e-9;
+  const st=by.get(pid),seen=new Set([pid]);const walk=(p,o)=>{const res=[];let cur=p;while(res.length<300){const n=nb(cur,o);if(!n||!n.p||seen.has(n.p.id))break;const out=other(n.p,n.i);if(out==null)break;seen.add(n.p.id);res.push({p:n.p,inI:n.i,outI:out});if(!isR(n.p))break;cur=n.p;o=out}return res};
+  const f=walk(st,1),b=walk(st,0).reverse().map(x=>({p:x.p,inI:x.outI,outI:x.inI}));return[...b,{p:st,inI:0,outI:1},...f]}
+function profileData(pid){const ch=rampChain(pid);let s=0;const pts=[];ch.forEach((c,k)=>{const e=cache.get(c.p.id).ends,g=geom(c.p),a=e[c.inI],b=e[c.outI],len=Math.abs(g.ends[c.outI].s-g.ends[c.inI].s);if(k===0)pts.push({s:0,z:a.z});s+=len;pts.push({s,z:b.z,p:c.p,from:pts[pts.length-1]})});return pts}
+function profileSVG(pid,W,H){const pts=profileData(pid);if(pts.length<2)return"";const L=pts[pts.length-1].s;let z0=Math.min(...pts.map(q=>q.z)),z1=Math.max(...pts.map(q=>q.z));const pad=Math.max(12,(z1-z0)*.18);z0-=pad;z1+=pad;
+  const l=44,r=14,t=26,b=34,X=v=>l+v/L*(W-l-r),Y=v=>H-b-(v-z0)/(z1-z0)*(H-t-b);let o=`<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Seitenansicht der Rampe" style="font-family:var(--f-mono);font-size:10.5px;display:block">`;
+  S.levels.filter(lv=>lv.h>=z0&&lv.h<=z1).forEach(lv=>{o+=`<line x1="${l}" x2="${W-r}" y1="${Y(lv.h)}" y2="${Y(lv.h)}" stroke="${lv.color}" stroke-dasharray="4 4" stroke-width="1"/><text x="${W-r}" y="${Y(lv.h)-4}" text-anchor="end" fill="${lv.color}">${esc(lv.name.split(" · ")[0])} ${fmt(lv.h)}</text>`});
+  o+=`<line x1="${l}" x2="${W-r}" y1="${H-b}" y2="${H-b}" stroke="var(--line)"/><text x="${l}" y="${H-b+16}" fill="var(--muted)">0</text><text x="${W-r}" y="${H-b+16}" text-anchor="end" fill="var(--muted)">${fmt(L)} mm</text>`;
+  for(let i=1;i<pts.length;i++){const a=pts[i-1],c=pts[i],isSel=c.p&&c.p.id===sel,ramp=Math.abs(c.p.grad||0)>1e-9;o+=`<line x1="${X(a.s)}" y1="${Y(a.z)}" x2="${X(c.s)}" y2="${Y(c.z)}" stroke="${isSel?"var(--signal)":ramp?"var(--ink)":"var(--ballast)"}" stroke-width="${isSel?4:3}" stroke-linecap="round"/>`}
+  let lastX=-99;pts.forEach((q,i)=>{const x=X(q.s),y=Y(q.z),edge=i===0||i===pts.length-1;o+=`<circle cx="${x}" cy="${y}" r="3" fill="var(--paper)" stroke="var(--ink)" stroke-width="1.5"/>`;
+    if(edge||x-lastX>=26){const up=i%2===0;o+=`<text x="${x}" y="${up?y-9:y+17}" text-anchor="middle" fill="var(--ink)" ${edge?'font-weight="600"':""}>${fmt(q.z)}</text>`;lastX=x}});
+  const dz=pts[pts.length-1].z-pts[0].z,gs=[...new Set(pts.slice(1).map(q=>fmt(Math.abs(q.p.grad||0))))].filter(g=>g!=="0");
+  o+=`<text x="${l}" y="14" fill="var(--muted)">Höhe SO in mm · überhöht</text></svg>`;
+  return o+`<div class="mono muted" style="margin-top:4px">Länge ${fmt(L)} mm · Δh ${fmt(dz)} mm · Steigung ${gs.join(" / ")||"0"} % · ${pts.length-1} Gleise</div>`}
+function rampTxt(r){if(!r)return"";let t=`Δ ${fmt(r.dh)} mm · Länge ${fmt(r.len)} mm`;if(rampCfg.form!=="gerade"){t+=` · ${fmt(r.turns)} Windungen · ${fmt(r.perTurn)} mm je Windung`;if(r.clr<S.set.clear)t+=` · <b style="color:var(--err)">lichte Höhe ${fmt(r.clr)} mm zu klein</b>`}if(r.R<r.L0.minR&&rampCfg.form!=="gerade")t+=` · <b style="color:var(--err)">Radius unter ${fmt(r.L0.minR)} mm</b>`;return t}
+function tabLev(){const st=S.set;let h=`<div class="sec"><div class="row" style="justify-content:space-between"><h3 style="margin:0">Ebenen</h3><button class="btn pri" id="lvAdd"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Ebene</button></div><p class="muted">Beliebig viele. Aktive Ebene antippen; neue Gleise und Platten landen dort.</p>`;
+  [...S.levels].sort((a,b)=>b.h-a.h).forEach(l=>{const n=S.pieces.filter(p=>p.level===l.id).length,on=l.id===S.active,open=lvOpen===l.id;
+    h+=`<div class="lv ${on?"on":""}"><span class="sw" style="background:${l.color}"></span><span class="nm" data-act="${l.id}">${esc(l.name)}</span>
+    <button class="ib mini" data-vis="${l.id}" title="${l.vis?"Ausblenden":"Einblenden"}" aria-label="Sichtbarkeit">${l.vis?'<svg viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>':'<svg viewBox="0 0 24 24"><path d="M3 3l18 18M10.6 5.1A10 10 0 0 1 12 5c6 0 10 7 10 7a17 17 0 0 1-3 3.6M6.6 6.6C3.7 8.5 2 12 2 12s4 7 10 7a10 10 0 0 0 4.4-1"/></svg>'}</button>
+    <button class="ib mini" data-ed="${l.id}" title="Einstellungen" aria-label="Einstellungen"><svg viewBox="0 0 24 24"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg></button>
+    <div class="meta">${fmt(l.h)} mm · ${n} Gleise${l.minR?` · R ≥ ${fmt(l.minR)}`:""} · ≤ ${fmt(l.maxGrad)} %</div>
+    ${open?`<div class="det"><div class="row"><input type="text" id="lN" value="${esc(l.name)}" aria-label="Name"><input type="color" id="lC" value="${l.color}" aria-label="Farbe"></div>
+      <div class="row"><label>Höhe SO</label>${num("lH",l.h,1)}<span class="muted">mm</span></div>
+      <div class="row"><label>Mindestradius</label>${num("lR",l.minR,1)}<span class="muted">mm (0 = aus)</span></div>
+      <div class="row"><label>Max. Steigung</label>${num("lG",l.maxGrad,.1)}<span class="muted">%</span></div>
+      <div class="row"><button class="btn" id="lBB">Big-Boy-Regel</button><button class="btn" id="lAuto">Platte aus Gleisen</button><button class="btn warn" id="lDel">Löschen</button></div></div>`:""}</div>`});
+  const rm=S.room||[];h+=`</div><div class="sec"><div class="row" style="justify-content:space-between"><h3 style="margin:0">Raum</h3><button class="btn" id="rmDraw"><svg viewBox="0 0 24 24"><path d="M4 4h10v6h6v10H4z"/></svg>${rm.length?"Neu zeichnen":"Zeichnen"}</button></div>
+    ${rm.length?`<p class="mono">${fmt(polyArea(rm)/1e6)} m² · ${rm.length} Ecken</p><p class="muted">Ecken im Plan ziehen (nur wenn dieser Reiter offen ist) oder hier eintippen. Gleise außerhalb meldet die Prüfung.</p>
+    <table><thead><tr><th>Ecke</th><th>x mm</th><th>y mm</th><th></th></tr></thead><tbody>${rm.map((q,i)=>`<tr${roomSel===i?' style="background:var(--line)"':""}><td class="mono">${i+1}</td><td><input type="number" data-rx="${i}" value="${q.x}" step="10" style="width:84px"></td><td><input type="number" data-ry="${i}" value="${q.y}" step="10" style="width:84px"></td><td><button class="ib mini" data-rins="${i}" title="Ecke danach einfügen" aria-label="Ecke einfügen">+</button>${rm.length>3?`<button class="ib mini" data-rdel="${i}" title="Ecke löschen" aria-label="Ecke löschen">−</button>`:""}</td></tr>`).join("")}</tbody></table>
+    <div class="row"><button class="btn warn" id="rmDel">Raum entfernen</button></div>`:`<p class="muted">Zeichne die Wände als Polygon: Ecken antippen, ersten Punkt antippen zum Schließen. Für ein Rechteck aus dem Rahmen: <button class="btn" id="rmRect">Rahmen als Raum</button></p>`}</div>
+  <div class="sec"><h3>Anlage</h3>
+    <div class="row"><label>Rahmen (0 = aus)</label>${num("sW",st.frameW,10)}×${num("sH",st.frameH,10)}<span class="muted">mm</span></div>
+    <div class="row"><label>Plattenstärke</label>${num("sB",st.board,1)}<span class="muted">mm</span></div>
+    <div class="row"><label>Lichte Höhe min.</label>${num("sC",st.clear,1)}<span class="muted">mm</span><button class="ibtn" data-info="cInfo">i</button></div>
+    <div class="info" id="cInfo">NEM 102 für H0: 59 mm über Schienenoberkante (H4), mit Fahrleitung 65 mm (H5). Gemessen wird Höhe der oberen Schienenoberkante minus Plattenstärke minus untere Schienenoberkante.</div></div>`;
+  return h}
+let lvOpen=null,roomSel=null;
+function tabChk(){if(!problems.length)return`<div class="sec"><div class="okbox"><span class="dot" style="background:var(--ok)"></span><div><b>Alles in Ordnung</b><div class="muted">Radien, Steigungen, lichte Höhen und Stöße passen.</div></div></div></div>`;
+  const ne=problems.filter(p=>p.sev==="err").length;let h=`<div class="sec"><p class="muted">${ne} Fehler${problems.length>ne?` · ${problems.length-ne} Hinweis`:""}. Antippen zeigt die Stelle.</p>`;
+  problems.forEach((p,i)=>h+=`<div class="prob" data-pr="${i}"><span class="dot s-${p.sev}"></span><span><b>${esc(p.t)}</b><div>${esc(p.d)}</div></span></div>`);return h+"</div>"}
+function tabMat(){const cnt=new Map();let flex=0,flexN=0;S.pieces.forEach(p=>{if(ART[p.art].flex){flex+=Math.min(900,+p.flex.len||0);flexN++}else cnt.set(p.art,(cnt.get(p.art)||0)+1)});
+  let ext=0;S.pieces.filter(p=>geom(p).tt).forEach(p=>{const used=cache.get(p.id).ends.filter(e=>conn.con.has(p.id+":"+e.i)).length;ext+=Math.ceil(Math.max(0,used-6)/3)});
+  const rows=[...cnt].sort((a,b)=>a[0].localeCompare(b[0])).map(([a,n])=>`<tr><td class="mono">${a}</td><td>${esc(ART[a].name)}${ART[a].incl?` <span class="muted">(${ART[a].incl} Anschlüsse dabei)</span>`:""}</td><td class="n">${n}</td></tr>`).join("")+(ext?`<tr><td class="mono">7287</td><td>Erweiterung Drehscheibe, je 3 Anschlüsse</td><td class="n">${ext}</td></tr>`:"");
+  let h=`<div class="sec"><h3>Gleisstückliste</h3><table><thead><tr><th>Art.</th><th>Gleis</th><th style="text-align:right">Stk.</th></tr></thead><tbody>${rows||'<tr><td colspan="3" class="muted">Noch keine Gleise.</td></tr>'}
+  ${flexN?`<tr><td class="mono">2205</td><td>Flexgleis, ${flexN} Abschnitte · ${fmt(flex)} mm</td><td class="n">${Math.ceil(flex/900)}</td></tr>`:""}</tbody></table>
+  ${flexN?'<p class="muted">Flexgleis: Stückzahl ist eine Schätzung aus der Gesamtlänge, ohne Verschnitt.</p>':""}</div>`;
+  let area=0;const br=S.boards.map(b=>{area+=b.w*b.h;return`<tr><td>${esc(lev(b.level).name)}</td><td class="n">${fmt(b.w)} × ${fmt(b.h)}</td><td class="n">${fmt(b.w*b.h/1e6)}</td></tr>`}).join("");
+  h+=`<div class="sec"><h3>Plattenzuschnitt</h3><table><thead><tr><th>Ebene</th><th style="text-align:right">B × T mm</th><th style="text-align:right">m²</th></tr></thead><tbody>${br||'<tr><td colspan="3" class="muted">Noch keine Platten. Werkzeug „Platte zeichnen“ oder in Ebenen „Platte aus Gleisen“.</td></tr>'}</tbody></table>
+  ${area?`<p class="mono">Summe ${fmt(area/1e6)} m² · Plattenstärke ${fmt(S.set.board)} mm</p><p class="muted">Schätzung: ${Math.ceil(area*1.15/(2500*1250))} Platten 2500 × 1250 mm bei 15 % Verschnitt. Für die Preisanfrage die Zuschnittliste oben verwenden.</p><button class="btn" id="copyCut"><svg viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M4 16V4h12"/></svg>Zuschnittliste kopieren</button>`:""}</div>`;
+  return h}
+function bindTab(){const on=(id,ev,f)=>{const e=$(id);if(e)e.addEventListener(ev,f)};const p=S.pieces.find(q=>q.id===sel),b=S.boards.find(q=>q.id===selBoard);
+  document.querySelectorAll("[data-info]").forEach(x=>x.onclick=()=>$(x.dataset.info).classList.toggle("open"));
+  on("newPlan","click",()=>{snap();const s=S.set;S=blank();S.set=s;S.active=S.levels[0].id;sel=null;activeEnd=null;rebuild();fit()});
+  if(p){on("pLev","change",e=>{snap();p.level=e.target.value;rebuild()});on("pZ","change",e=>{snap();p.z=+e.target.value;rebuild()});on("pG","change",e=>{snap();p.grad=+e.target.value;rebuild()});
+    on("fL","change",e=>{snap();p.flex.len=Math.min(900,Math.max(10,+e.target.value));rebuild()});on("fR","change",e=>{snap();p.flex.r=Math.max(0,+e.target.value);rebuild()});
+    on("pRise","click",()=>sheet("Strecke anheben",`<p class="muted">Hebt alle mit diesem Gleis verbundenen Gleise um denselben Wert an (negativ = absenken).</p><div class="row"><label>Um</label><input type="number" id="riseV" value="10" step="1"><span class="muted">mm</span></div><button class="btn pri" id="riseGo">Anheben</button>`,()=>{$("riseGo").onclick=()=>{const v=+$("riseV").value,g=group(p.id);snap();S.pieces.forEach(q=>{if(g.has(q.id))q.z+=v});closeSheet();rebuild()}}))}
+  if(b){on("bLev","change",e=>{snap();b.level=e.target.value;rebuild()});[["bW","w"],["bH","h"],["bX","x"],["bY","y"]].forEach(([i,k])=>on(i,"change",e=>{snap();b[k]=+e.target.value;rebuild()}))}
+  on("conGo","click",()=>setMode("connect"));on("profBig","click",()=>sheet("Seitenansicht Rampe",profileSVG(sel,620,300)));on("rGo","click",buildRamp);
+  on("rT","change",e=>{rampCfg.target=e.target.value;$("rOut").innerHTML=rampTxt(rampPlan())});on("rF","change",e=>{rampCfg.form=e.target.value;ui()});
+  on("rR","input",e=>{rampCfg.R=+e.target.value;$("rOut").innerHTML=rampTxt(rampPlan())});on("rS","input",e=>{rampCfg.g=+e.target.value;$("rOut").innerHTML=rampTxt(rampPlan())});
+  on("rH","input",e=>{rampH=+e.target.value||0;$("rCalc").textContent=`Rampenlänge ${fmt(rampH/(rampG/100))} mm ≈ ${fmt(rampH/(rampG/100)/180)} × 2200`});
+  on("rG","input",e=>{rampG=+e.target.value||1;$("rCalc").textContent=`Rampenlänge ${fmt(rampH/(rampG/100))} mm ≈ ${fmt(rampH/(rampG/100)/180)} × 2200`});
+  on("lvAdd","click",()=>{snap();const top=Math.max(...S.levels.map(l=>l.h));const l={id:uid(),name:"Ebene "+S.levels.length,h:top+80,color:COLORS[S.levels.length%COLORS.length],minR:0,maxGrad:2.5,vis:true};S.levels.push(l);S.active=l.id;lvOpen=l.id;rebuild()});
+  document.querySelectorAll("[data-act]").forEach(x=>x.onclick=()=>{S.active=x.dataset.act;activeEnd=null;rebuild()});
+  document.querySelectorAll("[data-vis]").forEach(x=>x.onclick=()=>{const l=lev(x.dataset.vis);l.vis=!l.vis;rebuild()});
+  document.querySelectorAll("[data-ed]").forEach(x=>x.onclick=()=>{lvOpen=lvOpen===x.dataset.ed?null:x.dataset.ed;ui()});
+  if(lvOpen){const l=lev(lvOpen);on("lN","change",e=>{snap();l.name=e.target.value||l.name;rebuild()});on("lC","change",e=>{snap();l.color=e.target.value;rebuild()});
+    on("lH","change",e=>{snap();const d=+e.target.value-l.h;l.h=+e.target.value;S.pieces.forEach(q=>{if(q.level===l.id)q.z+=d});rebuild()});
+    on("lR","change",e=>{snap();l.minR=Math.max(0,+e.target.value);rebuild()});on("lG","change",e=>{snap();l.maxGrad=Math.max(0,+e.target.value);rebuild()});
+    on("lBB","click",()=>{snap();l.minR=450;l.maxGrad=2.5;rebuild();toast("Big Boy: R ≥ 450 mm, ≤ 2,5 %")});
+    on("lAuto","click",()=>{const ps=S.pieces.filter(q=>q.level===l.id);if(!ps.length){toast("Ebene hat noch keine Gleise");return}let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;ps.forEach(q=>{const c=cache.get(q.id).bb;x0=Math.min(x0,c[0]);y0=Math.min(y0,c[1]);x1=Math.max(x1,c[2]);y1=Math.max(y1,c[3])});
+      snap();const m=60,r=v=>Math.round(v/5)*5;S.boards.push({id:uid(),level:l.id,x:r(x0-m),y:r(y0-m),w:r(x1-x0+2*m),h:r(y1-y0+2*m)});rebuild();toast("Platte mit 60 mm Rand angelegt")});
+    on("lDel","click",()=>{if(S.levels.length<2){toast("Mindestens eine Ebene bleibt");return}const n=S.pieces.filter(q=>q.level===l.id).length;
+      sheet("Ebene löschen",`<p>„${esc(l.name)}“ mit ${n} Gleisen und ihren Platten löschen? Rückgängig ist möglich.</p><button class="btn warn" id="lDelGo">Ebene löschen</button>`,()=>{$("lDelGo").onclick=()=>{snap();S.pieces=S.pieces.filter(q=>q.level!==l.id);S.boards=S.boards.filter(q=>q.level!==l.id);S.levels=S.levels.filter(q=>q.id!==l.id);S.active=S.levels[0].id;lvOpen=null;closeSheet();rebuild()}})})}
+  on("rmDraw","click",()=>{roomDraft=[];setMode("room")});on("rmDel","click",()=>{snap();S.room=[];roomSel=null;rebuild()});
+  on("rmRect","click",()=>{snap();const w=S.set.frameW,h=S.set.frameH;S.room=[{x:0,y:0},{x:w,y:0},{x:w,y:h},{x:0,y:h}];rebuild()});
+  document.querySelectorAll("[data-rx]").forEach(x=>x.onchange=()=>{snap();S.room[+x.dataset.rx].x=+x.value;rebuild()});
+  document.querySelectorAll("[data-ry]").forEach(x=>x.onchange=()=>{snap();S.room[+x.dataset.ry].y=+x.value;rebuild()});
+  document.querySelectorAll("[data-rins]").forEach(x=>x.onclick=()=>{snap();const i=+x.dataset.rins,a=S.room[i],b=S.room[(i+1)%S.room.length];S.room.splice(i+1,0,{x:Math.round((a.x+b.x)/2/10)*10,y:Math.round((a.y+b.y)/2/10)*10});rebuild()});
+  document.querySelectorAll("[data-rdel]").forEach(x=>x.onclick=()=>{snap();S.room.splice(+x.dataset.rdel,1);rebuild()});
+  [["sW","frameW"],["sH","frameH"],["sB","board"],["sC","clear"]].forEach(([i,k])=>on(i,"change",e=>{snap();S.set[k]=Math.max(0,+e.target.value);rebuild()}));
+  document.querySelectorAll("[data-pr]").forEach(x=>x.onclick=()=>{const pr=problems[+x.dataset.pr];if(pr.pid){sel=pr.pid;const c=cache.get(pr.pid);const q=pr.x!=null?{x:pr.x,y:pr.y}:c.w.paths[0][0];view.x=q.x;view.y=q.y;view.k=Math.max(view.k,.6)}render()});
+  on("copyCut","click",()=>{const t=S.boards.map(b=>`${lev(b.level).name}\t${Math.round(b.w)} x ${Math.round(b.h)} mm`).join("\n")+`\nPlattenstärke ${S.set.board} mm`;copy(t)})}
+function copy(t){const done=()=>toast("Kopiert");try{navigator.clipboard.writeText(t).then(done,()=>fallback(t))}catch(e){fallback(t)}}
+function fallback(t){sheet("Zum Kopieren markieren",`<textarea id="cpT" readonly></textarea>`,()=>{$("cpT").value=t;$("cpT").select()})}
+function sheet(title,html,after){$("sheetT").textContent=title;$("sheetB").innerHTML=html;$("sheet").hidden=false;after&&after()}
+function closeSheet(){$("sheet").hidden=true}
+$("sheetX").onclick=closeSheet;$("sheet").addEventListener("click",e=>{if(e.target.id==="sheet")closeSheet()});
+
+// Datei
+$("bFile").onclick=()=>sheet("Plan sichern und laden",`<p class="muted">Der Plan speichert sich automatisch in diesem Browser. Zum Sichern oder Weitergeben als Datei exportieren.</p>
+  <div class="row"><button class="btn pri" id="fExp">Als Datei sichern</button><button class="btn" id="fCopy">Plan kopieren</button><label class="btn" for="fIn">Datei laden</label><input type="file" id="fIn" accept=".json,application/json" hidden></div>
+  <p class="muted">Oder einen kopierten Plan hier einfügen:</p><textarea id="fTxt" placeholder='{"v":1, …}'></textarea><div class="row"><button class="btn" id="fLoad">Eingefügten Plan laden</button><button class="btn" id="fDemo">Beispielplan laden</button></div>`,()=>{
+  $("fExp").onclick=()=>{const blob=new Blob([JSON.stringify(S,null,1)],{type:"application/json"}),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="gleisplan-moraro.json";document.body.appendChild(a);a.click();a.remove();toast("Datei wird gesichert")};
+  $("fCopy").onclick=()=>copy(JSON.stringify(S));
+  const take=t=>{try{const o=JSON.parse(t);if(!o.levels||!o.pieces)throw 0;snap();S=o;S.active=S.active||S.levels[0].id;sel=null;activeEnd=null;closeSheet();rebuild();fit();toast("Plan geladen")}catch(e){toast("Das ist keine Gleisplan-Datei")}};
+  $("fIn").onchange=e=>{const f=e.target.files[0];if(f)f.text().then(take)};$("fLoad").onclick=()=>take($("fTxt").value);$("fDemo").onclick=()=>{snap();demo();closeSheet();rebuild();fit()}});
+$("bHelp").onclick=()=>sheet("Kurzanleitung",`<table><tbody>
+  <tr><td>Gleis setzen</td><td>In der Bibliothek antippen. Es hängt am roten Ende, das nächste freie Ende wird rot.</td></tr>
+  <tr><td>Weiterbauen</td><td>Messing-Punkt (offenes Ende) antippen. Das rote Ende nochmals antippen hängt ein gleiches Gleis an.</td></tr>
+  <tr><td>Seitenansicht</td><td>Ein Rampengleis antippen: unter „Auswahl“ erscheint das Höhenprofil mit allen Höhen.</td></tr>
+  <tr><td>F</td><td>Spiegeln: Bogen in die andere Richtung, Weiche links ↔ rechts.</td></tr>
+  <tr><td>C</td><td>Gleis mit einem anderen Ende anschließen (z. B. Weiche von der Spitze her).</td></tr>
+  <tr><td>R / Umschalt+R</td><td>Strecke um 7,5° drehen.</td></tr>
+  <tr><td>Ziehen</td><td>Verschiebt die verbundene Strecke, rastet an offenen Enden ein.</td></tr>
+  <tr><td>Rampe</td><td>Steigung am ersten Rampengleis eintragen; folgende Gleise übernehmen sie.</td></tr>
+  <tr><td>Ebenen</td><td>Beliebig viele, jede mit Höhe, Farbe und eigenen Regeln (Mindestradius, Steigung).</td></tr>
+  <tr><td>P</td><td>Platte zeichnen; Zuschnittliste unter „Material“.</td></tr>
+  <tr><td>Mehrere gleiche</td><td>Oben in der Bibliothek − / + (z. B. 12 × 2231). Oder Gleis im Plan antippen und + / Leertaste.</td></tr>
+  <tr><td>N / J</td><td>Gleisnummern bzw. Schienenstöße ein- und ausblenden.</td></tr>
+  <tr><td>O</td><td>Raum als Polygon: Ecken antippen, ersten Punkt antippen schließt. Umschalt rastet auf 15°.</td></tr>
+  <tr><td>Rampe</td><td>Offenes Ende rot markieren, unter „Auswahl“ Ziel-Ebene wählen: gerade oder als Wendel.</td></tr>
+  <tr><td>Verbinden</td><td>„Mit anderem Ende verbinden“: kürzester Weg mit Mindestradius, Steigung automatisch, nötigenfalls mit Wendel.</td></tr>
+  <tr><td>Drehscheibe</td><td>7286 aus der Bibliothek. Ein Anschluss (Messing-Punkt am Rand) antippen und Gleise radial ansetzen. 7,5°-Raster.</td></tr></tbody></table>
+  <p class="muted">Gleismaße nach Märklin-K-Gleis-Katalog (Gleismitte, Gleisbreite 30 mm, Parallelabstand 64,6 mm). Drehscheibe 7286: Ø 386 mm, Bühne 310 mm, Anschluss am Außenrand angenommen. Bogenweichen 2268/2269 folgen später.</p>`);
+
+// Druck 1:1
+$("bPrint").onclick=()=>{const vis=new Set(S.levels.filter(l=>l.vis).map(l=>l.id)),ps=S.pieces.filter(p=>vis.has(p.level));if(!ps.length){toast("Keine sichtbaren Gleise");return}
+  let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;ps.forEach(p=>{const c=cache.get(p.id).bb;x0=Math.min(x0,c[0]-30);y0=Math.min(y0,c[1]-30);x1=Math.max(x1,c[2]+30);y1=Math.max(y1,c[3]+30)});
+  const TW=190,TH=270,nx=Math.ceil((x1-x0)/TW),ny=Math.ceil((y1-y0)/TH);
+  sheet("1:1-Druck",`<p>${nx*ny} A4-Seiten (${nx} × ${ny}) für die sichtbaren Ebenen. Maßstab 1:1, Druckeinstellung „Tatsächliche Größe“ bzw. 100 % wählen.</p><p class="muted">Jede Seite hat ein 10-mm-Raster und Kachelnamen (A1, A2 …) zum Zusammenkleben. Auf moraro.world öffnet sich der Druckdialog; in der Vorschau hier ist Drucken gesperrt.</p><button class="btn pri" id="prGo">Drucken</button>`,()=>{$("prGo").onclick=()=>{
+    const pv=$("printView");let out="";const paths=ps.map(p=>{const L=lev(p.level);return cache.get(p.id).w.paths.map(pts=>`<polyline points="${pts.map(q=>q.x.toFixed(1)+","+(-q.y).toFixed(1)).join(" ")}" fill="none" stroke="${L.color}" stroke-opacity=".25" stroke-width="30"/><polyline points="${pts.map(q=>q.x.toFixed(1)+","+(-q.y).toFixed(1)).join(" ")}" fill="none" stroke="#000" stroke-width="18.5"/><polyline points="${pts.map(q=>q.x.toFixed(1)+","+(-q.y).toFixed(1)).join(" ")}" fill="none" stroke="#fff" stroke-width="16.5"/>`).join("")}).join("");
+    for(let j=0;j<ny;j++)for(let i=0;i<nx;i++){const tx=x0+i*TW,ty=y1-(j+1)*TH;let grid="";for(let g=Math.ceil(tx/10)*10;g<=tx+TW;g+=10)grid+=`<line x1="${g}" y1="${-ty-TH}" x2="${g}" y2="${-ty}" stroke="#000" stroke-opacity="${g%100?.06:.25}" stroke-width=".3"/>`;for(let g=Math.ceil(ty/10)*10;g<=ty+TH;g+=10)grid+=`<line x1="${tx}" y1="${-g}" x2="${tx+TW}" y2="${-g}" stroke="#000" stroke-opacity="${g%100?.06:.25}" stroke-width=".3"/>`;
+      out+=`<div class="tile"><div style="font:10pt Arial">MoRaRo Gleisplaner · Kachel ${String.fromCharCode(65+j)}${i+1} · 1:1 · x ${Math.round(tx)}–${Math.round(tx+TW)} mm, y ${Math.round(ty)}–${Math.round(ty+TH)} mm</div><svg width="${TW}mm" height="${TH}mm" viewBox="${tx} ${-ty-TH} ${TW} ${TH}" style="border:.3mm solid #000">${grid}${paths}</svg></div>`}
+    pv.innerHTML=out;closeSheet();setTimeout(()=>window.print(),50)}})};
+
+document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>{tab=t.dataset.tab;ui()});
+$("mSel").onclick=()=>setMode("sel");$("mBoard").onclick=()=>setMode("board");$("mRoom").onclick=()=>setMode("room");$("bDup").onclick=addSame;$("bNr").onclick=()=>toggleView("showNr");$("bJoint").onclick=()=>toggleView("showJoints");$("bRotL").onclick=()=>rotateSel(7.5);$("bRotR").onclick=()=>rotateSel(-7.5);$("bFlip").onclick=flipActive;$("dirBtn").onclick=flipActive;$("bCycle").onclick=cycleEnd;$("bDel").onclick=delSel;$("bUndo").onclick=doUndo;$("bRedo").onclick=doRedo;$("bFit").onclick=fit;
+$("tLib").onclick=()=>{$("lib").classList.toggle("closed");$("side").classList.add("closed")};$("tSide").onclick=()=>{$("side").classList.toggle("closed");$("lib").classList.add("closed")};
+window.addEventListener("resize",resize);matchMedia("(prefers-color-scheme: dark)").addEventListener("change",()=>{buildLib();render()});
+new MutationObserver(()=>{buildLib();render()}).observe(document.documentElement,{attributes:true,attributeFilter:["data-theme"]});
+load();if(!S.active)S.active=S.levels[0].id;if(innerWidth<861){$("lib").classList.add("closed");$("side").classList.add("closed")}
+$("repM").onclick=()=>{repN=Math.max(1,repN-1);$("repV").textContent=repN+" ×"};$("repP").onclick=()=>{repN=Math.min(48,repN+1);$("repV").textContent=repN+" ×"};
+buildLib();resize();rebuild();syncView();fit();
+</script>

@@ -12,7 +12,8 @@
     "test:redirects": "node test/redirects.test.mjs",
     "test:module": "node test/widgets-scope.test.mjs",
     "test:pages": "node test/pages.test.mjs",
-    "test": "npm run build && npm run test:redirects && npm run test:module && npm run test:pages",
+    "test:gleisplaner": "node test/gleisplaner.test.mjs",
+    "test": "npm run build && npm run test:redirects && npm run test:module && npm run test:pages && npm run test:gleisplaner",
     "deploy": "npm run build && wrangler deploy",
     "dev:worker": "npm run build && wrangler dev",
     "preview": "npm run build && wrangler versions upload --preview-alias vorschau"

@@ -28,6 +28,14 @@ Im **Cockpit (Redaktion)**: Zeile „MoRaRo“ (Key `moraro`, Blog + Galerie).
   Bildstrecke = mehrere Bilder (`images`), Video = YouTube-/Vimeo-Link. Tags als Filter
   (z. B. `dampflok`, `diesellok`, `elok`, `wagen`, Länder wie `usa`, `oesterreich`).
 
+## Gleisplaner (/gleisplaner)
+
+- Seite `src/pages/gleisplaner.html` bettet die App `/gleisplaner-app` ein (Knopf „Im Vollbild öffnen“).
+- Die App selbst liegt unverändert in `src/apps/gleisplaner.html` – Quelle: Projekt MoRaRo, `Output/Gleisplaner.html` (Werkzeug-Repo `gleisplaner`). Neue Fassung = Datei ersetzen, `npm test`.
+- `build.mjs` (`buildApps`) setzt das Seitengerüst, `noindex`, kanonisch `/gleisplaner` und die eigenen Schriften statt Google Fonts.
+- Pläne bleiben im Browser (localStorage) bzw. als Datei beim Nutzer; Datenschutz-Abschnitt `#gleisplaner`.
+- Weiterleitungen: `/gleisplan` und `/planer` → `/gleisplaner`.
+
 ## Befehle
 
 ```bash

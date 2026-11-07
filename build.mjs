@@ -275,6 +275,50 @@ function einreichen(verzeichnis, eintraege) {
 </dialog>`;
 }
 
+
+/**
+ * Eigenständige Apps (src/apps/*.html → public/<name>-app.html), z. B. der Gleisplaner.
+ * Die App-Datei bleibt unverändert so, wie sie aus dem Werkzeug kommt (Projekt-Ordner Output/Gleisplaner.html).
+ * Beim Bauen bekommt sie ein Seitengerüst (Zeichensatz, Viewport, Favicon, noindex, kanonisch auf die Hauptseite)
+ * und die Schriften vom eigenen Server statt von Google Fonts (Datenschutzerklärung nennt keine Google Fonts).
+ */
+async function buildApps() {
+  const dir = join(SRC, "apps");
+  if (!existsSync(dir)) return 0;
+  let n = 0;
+  for (const file of (await readdir(dir)).filter((f) => f.endsWith(".html")).sort()) {
+    const name = file.replace(/\.html$/, "");
+    let roh = await read(join(dir, file));
+    roh = roh
+      .replace(/<link[^>]+href="https:\/\/fonts\.(googleapis|gstatic)\.com[^"]*"[^>]*>\s*/g, "")
+      .replace(/<meta name="claude:[^"]*"[^>]*>\s*/g, "");
+    if (/fonts\.(googleapis|gstatic)\.com/.test(roh)) throw new Error(`${file}: Verweis auf Google Fonts übrig`);
+    const titel = (roh.match(/<title>([^<]*)<\/title>/) || [, "MoRaRo"])[1];
+    roh = roh.replace(/<title>[^<]*<\/title>\s*/, "");
+    const html = `<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>${titel}</title>
+<meta name="robots" content="noindex" />
+<link rel="canonical" href="${config.siteUrl}/${name}" />
+<link rel="icon" href="/favicon.ico" sizes="any" />
+<link rel="icon" href="/assets/img/favicon.svg" type="image/svg+xml" />
+${fontLinks()}
+</head>
+<body>
+${roh.trim()}
+</body>
+</html>
+`;
+    await writeFile(join(OUT, `${name}-app.html`), html, "utf8");
+    console.log("  ✓", `${name}-app.html (App)`);
+    n++;
+  }
+  return n;
+}
+
 const globals = {
   SITE_URL: config.siteUrl,
   MAIL: config.mail,
@@ -333,7 +377,9 @@ for (const file of pages.sort()) {
   built++;
 }
 
+const anzahlApps = await buildApps();
 const anzahlWeiterleitungen = await buildRedirects();
 
 console.log(`\n${built} Seiten gebaut → public/`);
+console.log(`${anzahlApps} Apps gebaut → public/*-app.html`);
 console.log(`${anzahlWeiterleitungen} Weiterleitungen → worker/redirects.generated.js`);

@@ -1,0 +1,28 @@
+<!--meta
+{
+  "title": "Gleisplaner | MoRaRo",
+  "description": "Kostenloser Gleisplaner für Märklin K-Gleis in H0: Gleise setzen, mehrere Ebenen mit Rampe und Wendel, Enden automatisch verbinden, Drehscheibe 7286 – direkt im Browser, ohne Konto.",
+  "nav": "gleisplaner",
+  "out": "gleisplaner.html",
+  "head": "<style>.gp-rahmen{position:relative;width:100%;height:min(78vh,860px);min-height:520px;border:1px solid rgba(0,0,0,.15);border-radius:10px;overflow:hidden;background:#f3f1ec}.gp-rahmen iframe{position:absolute;inset:0;width:100%;height:100%;border:0}.gp-hinweis{font-size:.95rem;max-width:44em}</style>"
+}
+-->
+
+<div class="dark">
+  <header class="page-head wrap">
+    <p class="kicker">Werkzeug · Planen</p>
+    <h1>Gleisplaner</h1>
+    <p class="lead">Plane deine eigene H0-Anlage mit Märklin K-Gleis – direkt im Browser, kostenlos und ohne Konto. Beliebig viele Ebenen, Rampen und Wendeln, automatisches Verbinden zweier Enden und die Drehscheibe 7286.</p>
+    <div class="btn-row">
+      <a class="btn btn--rot" href="/gleisplaner-app" target="_blank" rel="noopener">Im Vollbild öffnen</a>
+    </div>
+  </header>
+  {{GLEIS}}
+</div>
+
+<section class="section wrap">
+  <div class="gp-rahmen">
+    <iframe src="/gleisplaner-app" title="MoRaRo Gleisplaner" loading="lazy" allow="fullscreen"></iframe>
+  </div>
+  <p class="gp-hinweis">Deine Pläne bleiben nur in deinem Browser gespeichert. Zum Sichern oder Weitergeben im Planer über „Datei“ als Datei sichern und später wieder laden. Mehr dazu im <a href="/datenschutz#gleisplaner">Datenschutz</a>.</p>
+</section>
