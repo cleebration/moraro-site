@@ -264,6 +264,23 @@ function connections(pieces){const ends=[];pieces.forEach(p=>worldEnds(p).forEac
   ends.forEach(e=>{const k=key(e.x,e.y);(H.get(k)||H.set(k,[]).get(k)).push(e)});const con=new Map();
   ends.forEach(e=>{const cx=Math.round(e.x/4),cy=Math.round(e.y/4);for(let dx=-1;dx<=1;dx++)for(let dy=-1;dy<=1;dy++){const L=H.get((cx+dx)+","+(cy+dy));if(!L)continue;for(const o of L){if(o.pid===e.pid)continue;if(Math.hypot(o.x-e.x,o.y-e.y)<1.2&&hdiff(o.h,e.h+180)<2&&Math.abs(o.z-e.z)<30){con.set(e.pid+":"+e.i,o)}}}});
   return{ends,con}}
+// Parallelgleis zu Flex-Abschnitten (o > 0 = links versetzt)
+function offsetSpecs(specs,o){const out=[];specs.forEach(sp=>{if(!(sp.r>0)){out.push({...sp});return}const ang=sp.len/sp.r,r2=sp.right?sp.r+o:sp.r-o,L=r2*ang,n=Math.ceil(L/900-1e-9);for(let i=0;i<n;i++)out.push({r:r2,len:L/n,right:sp.right})});return out}
+// Trasse entlang einer Mittellinie: Konsolen an Füßen, Stützen in Lücken
+function trasseCalc(pts,o){const c=[];for(let i=0;i<pts.length;i++){const a=pts[Math.max(0,i-1)],b=pts[Math.min(pts.length-1,i+1)],h=Math.atan2(b.y-a.y,b.x-a.x),nx=-Math.sin(h),ny=Math.cos(h);c.push({x:pts[i].x+o.off*nx,y:pts[i].y+o.off*ny,z:pts[i].z,s:pts[i].s,nx,ny})}
+  const sup=[],conf=[],L=c.length?c[c.length-1].s:0,abs=z=>o.H+z-o.thick;
+  (o.legs||[]).forEach(l=>{const lc={x:l.x+l.w/2,y:l.y+l.h/2};let bi=0,bd=1e18;c.forEach((q,i)=>{const d=Math.hypot(q.x-lc.x,q.y-lc.y);if(d<bd){bd=d;bi=i}});const q=c[bi];if(!q)return;
+    const edge=bd-o.w/2-l.w/2;if(edge<0&&abs(q.z)>0){conf.push({x:lc.x,y:lc.y,s:q.s});return}
+    if(edge<=o.reach&&(bi>0&&bi<c.length-1||edge<=o.reach)){const sgn=Math.sign((lc.x-q.x)*q.nx+(lc.y-q.y)*q.ny)||1;sup.push({type:"konsole",s:q.s,x:q.x+sgn*q.nx*o.w/2,y:q.y+sgn*q.ny*o.w/2,lx:lc.x,ly:lc.y,len:Math.max(0,edge),h:abs(q.z)})}});
+  sup.sort((a,b)=>a.s-b.s);const ded=[];sup.forEach(k=>{if(!ded.some(d=>Math.abs(d.s-k.s)<60&&Math.abs(d.len-k.len)<1))ded.push(k)});
+  const at=s=>{let i=c.findIndex(q=>q.s>=s);if(i<0)i=c.length-1;return c[i]};const onMod=q=>(o.mods||[]).some(m=>q.x>=m.x&&q.x<=m.x+m.w&&q.y>=m.y&&q.y<=m.y+m.d)&&q.z>=-(o.frameH+o.thick)-1;
+  const pos=ded.map(k=>k.s),posts=[];const startOk=c.length&&onMod(c[0]),endOk=c.length&&onMod(c[c.length-1]);
+  const anchors=[...(startOk?[0]:[]),...pos,...(endOk?[L]:[])].sort((a,b)=>a-b);
+  if(!startOk&&(!anchors.length||anchors[0]>o.edge))posts.push(o.edge>L?L/2:Math.min(o.edge,L));
+  if(!endOk&&(!anchors.length||L-anchors[anchors.length-1]>o.edge))posts.push(Math.max(L-o.edge,0));
+  const all=[...anchors,...posts].sort((a,b)=>a-b);for(let i=1;i<all.length;i++){const gap=all[i]-all[i-1];if(gap>o.maxSpan){const n=Math.ceil(gap/o.maxSpan);for(let j=1;j<n;j++)posts.push(all[i-1]+gap*j/n)}}
+  posts.sort((a,b)=>a-b).forEach(s=>{const q=at(s);if(onMod(q))return;ded.push({type:"stuetze",s,x:q.x,y:q.y,h:abs(q.z),len:0})});ded.sort((a,b)=>a.s-b.s);
+  return{c,sup:ded,conf,L}}
 // Unterbau: Modul (x,y,w,d,ins) + Einstellungen -> Füße, Kistenplätze, Höhen
 const SUBDEF={boxW:400,boxD:600,boxH:300,gap:20,side:15,top:30,legW:70,frameH:90,frameT:18,maxSpan:1000,maxMod:1250,height:0,example:true};
 function subHeight(sub,board){return sub.height>0?sub.height:sub.boxH+sub.top+sub.frameH+board}
@@ -296,7 +313,7 @@ const KEY="moraro-gleisplaner-v1";
 let S,undo=[],redo=[],cache=null,problems=[],conn=null;
 let sel=null,selBoard=null,activeEnd=null,last=null,mode="sel",tab="sel",view={x:2000,y:1000,k:.25};
 const uid=()=>Math.random().toString(36).slice(2,9);
-function blank(){return{v:3,demo:false,room:[],modules:[],sub:{...SUBDEF},levels:[{id:uid(),name:"Ebene 0",h:0,color:COLORS[0],minR:0,maxGrad:2.5,vis:true}],active:null,pieces:[],boards:[],set:{frameW:4000,frameH:2000,board:12,clear:59}}}
+function blank(){return{v:4,demo:false,room:[],modules:[],trassen:[],objs:[],sub:{...SUBDEF},levels:[{id:uid(),name:"Ebene 0",h:0,color:COLORS[0],minR:0,maxGrad:2.5,vis:true}],active:null,pieces:[],boards:[],set:{frameW:4000,frameH:2000,board:12,clear:59}}}
 function lev(id){return S.levels.find(l=>l.id===id)||S.levels[0]}
 function snap(){undo.push(JSON.stringify(S));if(undo.length>120)undo.shift();redo=[]}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
@@ -314,7 +331,7 @@ function demo(){S=blank();S.demo=true;const L0=S.levels[0];L0.name="Ebene 0 · S
   S.room=[{x:-300,y:-300},{x:4400,y:-300},{x:4400,y:2400},{x:1600,y:2400},{x:1600,y:3000},{x:-300,y:3000}];
   sel=null;activeEnd=null}
 function load(){try{const t=localStorage.getItem(KEY);if(t){S=JSON.parse(t);return}}catch(e){}demo()}
-function fixState(){S.modules=S.modules||[];S.sub=Object.assign({...SUBDEF},S.sub||{});S.room=S.room||[]}
+function fixState(){S.trassen=S.trassen||[];S.objs=S.objs||[];S.tr=Object.assign({w1:100,reach:400,maxSpan:500,edge:100},S.tr||{});S.modules=S.modules||[];S.sub=Object.assign({...SUBDEF},S.sub||{});S.room=S.room||[]}
 
 // ---------- Prüfung ----------
 function rebuild(){fixState();if(typeof syncView==="function"&&document.getElementById("bNr"))syncView();
@@ -347,6 +364,15 @@ function check(){const out=[],st=S.set,by=new Map(S.pieces.map(p=>[p.id,p]));
     if(outP.size)out.push({sev:"err",pid:[...outP.keys()][0],x:[...outP.values()][0].x,y:[...outP.values()][0].y,pts:[...outP.values()].slice(0,40),t:`${outP.size} Gleise außerhalb des Raums`,d:"Gleismitte liegt außerhalb des Raum-Polygons."});
     const ob=S.boards.filter(b=>[[b.x,b.y],[b.x+b.w,b.y],[b.x,b.y+b.h],[b.x+b.w,b.y+b.h]].some(([x,y])=>!pip({x,y},S.room)));
     if(ob.length)out.push({sev:"warn",x:ob[0].x,y:ob[0].y,t:`${ob.length} Platte${ob.length>1?"n":""} ragt aus dem Raum`,d:ob.map(b=>`${fmt(b.w)} × ${fmt(b.h)} mm (${lev(b.level).name})`).join(" · ")})}
+  // Trassen
+  (S.trassen||[]).forEach((t,ti)=>{const r=trasseOf(t);if(r.c.length<2)return;const nm=`Trasse ${ti+1}`;
+    const low=r.sup.filter(k=>k.h<=0);if(low.length)out.push({sev:"err",x:low[0].x,y:low[0].y,pts:low,t:`${nm}: unter Bodenhöhe`,d:`Unterkante ${fmt(Math.min(...low.map(k=>k.h)))} mm – Anlagenhöhe im Unterbau erhöhen oder untere Ebene anheben.`});
+    if(r.conf.length)out.push({sev:"err",x:r.conf[0].x,y:r.conf[0].y,pts:r.conf,t:`${nm}: ${r.conf.length} Fuß steht in der Trasse`,d:"Trasse verschieben oder Fuß versetzen."});
+    const slots=[];(S.modules||[]).forEach(m=>{const c=subCalc(m,S.sub,st.board);c.slots.forEach(b=>slots.push(b))});const H=subHeight(S.sub,st.board),hit=[];
+    r.c.forEach(q=>{const uk=H+q.z-st.board;if(uk<S.sub.boxH+S.sub.top&&slots.some(b=>q.x>=b.x-20&&q.x<=b.x+b.w+20&&q.y>=b.y-20&&q.y<=b.y+b.h+20))hit.push(q)});
+    if(hit.length)out.push({sev:"err",x:hit[0].x,y:hit[0].y,pts:hit.filter((q,i)=>i%5===0),t:`${nm}: kreuzt einen Kistenplatz`,d:"Unter dem Modul ist dort die Kiste im Weg."})});
+  // Portale
+  (S.objs||[]).forEach(o=>{if(o.hIn<st.clear)out.push({sev:"warn",x:o.x,y:o.y,t:`Portal ${o.n}-gl. niedriger als lichte Höhe`,d:`${fmt(o.hIn)} mm, eingestellt ${fmt(st.clear)} mm`});if(!snapTrack(o.x,o.y,o.n===2?45:15))out.push({sev:"info",x:o.x,y:o.y,t:`Portal ${o.n}-gl. steht nicht auf einem Gleis`,d:"Ziehen und loslassen rastet es ein."})});
   // Unterbau
   (S.modules||[]).forEach(m=>{const c=subCalc(m,S.sub,st.board),nm=m.name||"Modul";
     if(c.clear<c.need)out.push({sev:"err",x:m.x+m.w/2,y:m.y+m.d/2,t:`${nm}: Kiste passt nicht darunter`,d:`Lichte Höhe ${fmt(c.clear)} mm, nötig ${fmt(c.need)} mm (Kiste ${fmt(S.sub.boxH)} + Luft ${fmt(S.sub.top)})`});
@@ -372,7 +398,7 @@ function render(){if(!cache)return;if(S.pieces.some(p=>!cache.has(p.id)))cacheOn
   for(let y=Math.floor(wy(H)/step)*step;y<=wy(0);y+=step){ctx.strokeStyle=y%1000===0?P.gs:P.grid;ctx.beginPath();ctx.moveTo(0,sy(y)+.5);ctx.lineTo(W,sy(y)+.5);ctx.stroke()}
   // Raum
   const room=S.room||[];if(room.length>=3)drawRoom(room,true,P);
-  drawModules(P);
+  drawModules(P);drawTrassen(P);
   // Anlagenrahmen
   if(S.set.frameW>0&&S.set.frameH>0){ctx.setLineDash([8,6]);ctx.strokeStyle=P.brass;ctx.lineWidth=1.5;ctx.strokeRect(sx(0),sy(S.set.frameH),S.set.frameW*view.k,S.set.frameH*view.k);ctx.setLineDash([]);
   ctx.fillStyle=P.brass;ctx.font="500 11px 'IBM Plex Mono',monospace";ctx.fillText(`Anlage ${S.set.frameW/10} × ${S.set.frameH/10} cm`,sx(0)+4,sy(S.set.frameH)-6)}
@@ -382,6 +408,7 @@ function render(){if(!cache)return;if(S.pieces.some(p=>!cache.has(p.id)))cacheOn
       if(view.k*b.w>90){ctx.fillStyle=L.color;ctx.font="500 11px 'IBM Plex Mono',monospace";ctx.fillText(`${fmt(b.w)} × ${fmt(b.h)}`,sx(b.x)+5,sy(b.y)-6)}});
     const ps=S.pieces.filter(p=>p.level===L.id).sort((a,b)=>a.z-b.z);
     ps.forEach(p=>drawPiece(p,L,dim,P))});
+  drawObjs(P);
   // Schienenstöße
   if(S.set.showJoints!==false){const done=new Set(),len=Math.max(9,36*view.k);ctx.lineCap="round";
     conn.con.forEach((o,k)=>{const pid=k.split(":")[0];const pk=[pid,o.pid].sort().join("|")+"|"+Math.round(o.x)+","+Math.round(o.y);if(done.has(pk))return;done.add(pk);
@@ -410,6 +437,30 @@ function dirChip(){const el=$("dirChip");if(!el)return;if(!activeEnd||activeEnd.
   const e=cache.get(p.id).ends[activeEnd.i],X=sx(e.x),Y=sy(e.y);if(X<0||Y<0||X>W||Y>H){el.hidden=true;return}
   const left=a.pair?/links/.test(a.name):(a.flex?!p.flip:!p.flip);$("dirTxt").textContent=a.pair?(left?"→ Weiche rechts":"→ Weiche links"):(left?"Bogen nach rechts":"Bogen nach links");
   el.style.left=Math.min(W-90,Math.max(90,X))+"px";el.style.top=Math.max(110,Y)+"px";el.hidden=false}
+const TRSP=64.6;
+function trassePts(t){const by=new Map(S.pieces.map(p=>[p.id,p]));const ids=t.pids.filter(id=>by.has(id)&&cache.get(id));if(!ids.length)return[];
+  const ch=rampChain(ids[0]).filter(c=>t.pids.includes(c.p.id));const use=ch.length>=ids.length?ch:ids.map(id=>({p:by.get(id),inI:0,outI:1}));let s=0;const out=[];
+  use.forEach(cn=>{let pts=cache.get(cn.p.id).w.paths[0];if(cn.inI===1)pts=[...pts].reverse();pts.forEach((q,i)=>{if(out.length&&i===0)return;if(out.length){const l=out[out.length-1];s+=Math.hypot(q.x-l.x,q.y-l.y)}out.push({x:q.x,y:q.y,z:q.z,s})})});return out}
+function allLegs(){const L=[];(S.modules||[]).forEach(m=>subCalc(m,S.sub,S.set.board).legs.forEach(l=>L.push(l)));return L}
+function trasseOf(t){const pts=trassePts(t);const w=t.n===2?S.tr.w1+TRSP:S.tr.w1,off=t.n===2?t.side*TRSP/2:0;
+  return trasseCalc(pts,{w,off,legs:allLegs(),reach:S.tr.reach,maxSpan:S.tr.maxSpan,edge:S.tr.edge,H:subHeight(S.sub,S.set.board),thick:S.set.board,mods:S.modules||[],frameH:S.sub.frameH})}
+function drawTrassen(P){(S.trassen||[]).forEach(t=>{const r=trasseOf(t);if(r.c.length<2)return;const w=t.n===2?S.tr.w1+TRSP:S.tr.w1,isS=t.id===selTr;
+    const L=r.c.map(q=>({x:q.x+q.nx*w/2,y:q.y+q.ny*w/2})),R=r.c.map(q=>({x:q.x-q.nx*w/2,y:q.y-q.ny*w/2})).reverse();ctx.beginPath();[...L,...R].forEach((q,i)=>i?ctx.lineTo(sx(q.x),sy(q.y)):ctx.moveTo(sx(q.x),sy(q.y)));ctx.closePath();
+    ctx.fillStyle=P.brass+"22";ctx.fill();ctx.strokeStyle=isS?P.signal:P.brass;ctx.lineWidth=isS?2:1.2;ctx.stroke();
+    r.sup.forEach(k=>{if(k.type==="konsole"){ctx.strokeStyle=P.brass;ctx.lineWidth=Math.max(2,30*view.k);ctx.beginPath();ctx.moveTo(sx(k.lx),sy(k.ly));ctx.lineTo(sx(k.x),sy(k.y));ctx.stroke();ctx.fillStyle=P.brass;ctx.fillRect(sx(k.x)-4,sy(k.y)-4,8,8)}
+      else{const r=Math.max(3,S.sub.legW/2*view.k);ctx.fillStyle=P.paper;ctx.fillRect(sx(k.x)-r-1.5,sy(k.y)-r-1.5,2*r+3,2*r+3);ctx.fillStyle=P.ink;ctx.fillRect(sx(k.x)-r,sy(k.y)-r,2*r,2*r)}});
+    r.conf.forEach(k=>{ctx.strokeStyle=P.signal;ctx.lineWidth=2;ctx.beginPath();ctx.arc(sx(k.x),sy(k.y),12,0,7);ctx.stroke()})})}
+// Tunnelportale
+function objT(o){const c=Math.cos(o.rot*D2R),s=Math.sin(o.rot*D2R);return(x,y)=>({x:o.x+c*x-s*y,y:o.y+s*x+c*y})}
+function objInv(o,x,y){const c=Math.cos(o.rot*D2R),s=Math.sin(o.rot*D2R),dx=x-o.x,dy=y-o.y;return{x:c*dx+s*dy,y:-s*dx+c*dy}}
+function drawObjs(P){(S.objs||[]).forEach(o=>{const L=lev(o.level);if(!L.vis)return;const t=objT(o),isS=o.id===selObj,hw=o.wIn/2,dir=o.flip?-1:1,d=o.dep*dir;
+    const poly=pts=>{ctx.beginPath();pts.forEach((q,i)=>{const r=t(q[0],q[1]);i?ctx.lineTo(sx(r.x),sy(r.y)):ctx.moveTo(sx(r.x),sy(r.y))});ctx.closePath()};
+    ctx.globalAlpha=o.level===S.active?1:.5;
+    poly([[0,-hw],[d,-hw],[d,hw],[0,hw]]);ctx.setLineDash([5,4]);ctx.strokeStyle=P.ink;ctx.lineWidth=1.2;ctx.stroke();ctx.setLineDash([]);
+    [[hw,hw+o.wall],[-hw-o.wall,-hw]].forEach(([a,b])=>{poly([[0,a],[d,a],[d,b],[0,b]]);ctx.fillStyle=isS?P.signal:P.ink;ctx.fill()});
+    const f0=t(0,-hw-o.wall),f1=t(0,hw+o.wall);ctx.strokeStyle=isS?P.signal:P.ink;ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(sx(f0.x),sy(f0.y));ctx.lineTo(sx(f1.x),sy(f1.y));ctx.stroke();
+    if(view.k>.2){const m=t(-14*dir,0);ctx.font="600 10px 'IBM Plex Mono',monospace";ctx.textAlign="center";ctx.fillStyle=P.ink;ctx.fillText(`Portal ${o.n}-gl.`,sx(m.x),sy(m.y)-Math.max(10,(hw+o.wall)*view.k)-4);ctx.textAlign="start"}
+    ctx.globalAlpha=1})}
 function drawModules(P){const ms=S.modules||[];if(!ms.length)return;const strong=tab==="sub"||mode==="module";
   ms.forEach(m=>{const c=subCalc(m,S.sub,S.set.board),isS=m.id===selMod;ctx.globalAlpha=strong?1:.45;
     c.slots.forEach(b=>{ctx.fillStyle=P.ball+"33";ctx.strokeStyle=P.ball;ctx.lineWidth=1;ctx.fillRect(sx(b.x),sy(b.y+b.h),b.w*view.k,b.h*view.k);ctx.strokeRect(sx(b.x),sy(b.y+b.h),b.w*view.k,b.h*view.k)});
@@ -435,10 +486,12 @@ function drawPiece(p,L,dim,P){const c=cache.get(p.id),k=view.k,isSel=p.id===sel;
   ctx.lineCap="butt";ctx.lineJoin="round";ctx.globalAlpha=dim?.4:1;
   if(isSel)c.w.paths.forEach(pts=>stroke(pts,Math.max(8,40*k),P.signal+"55"));
   if(k<.12){c.w.paths.forEach(pts=>stroke(pts,2,L.color));ctx.globalAlpha=1;return}
+  if(p.tun)ctx.setLineDash([Math.max(4,40*k),Math.max(3,25*k)]);
   c.w.paths.forEach(pts=>stroke(pts,30*k,L.color+"40"));
   c.w.deco.forEach(pts=>stroke(pts,Math.max(1,18.5*k),P.ink+"55"));
   c.w.paths.forEach(pts=>stroke(pts,Math.max(1.5,18.5*k),isSel?P.signal:P.ink));
   if(k>.25)c.w.paths.forEach(pts=>stroke(pts,Math.max(.5,14.5*k),L.color+"cc"));
+  ctx.setLineDash([]);
   if(Math.abs(p.grad||0)>0&&k>.2){const m=c.w.paths[0][Math.floor(c.w.paths[0].length/2)];ctx.fillStyle=P.ink;ctx.font="600 10px 'IBM Plex Mono',monospace";ctx.fillText(`${p.grad>0?"↗":"↘"}${fmt(Math.abs(p.grad))}%`,sx(m.x)+8,sy(m.y)+Math.max(15*k+16,18))}
   ctx.globalAlpha=1}
 function status(){const L=lev(S.active),k=view.k;const z=mouse?`x ${fmt(wx(mouse.X))} · y ${fmt(wy(mouse.Y))} mm`:"";
@@ -470,9 +523,15 @@ function srcEnd(){return activeEnd&&cache.get(activeEnd.pid)?cache.get(activeEnd
 function srcLevel(){const e=srcEnd();return e?lev(S.pieces.find(p=>p.id===e.pid).level):lev(S.active)}
 function rampPlan(){const e=srcEnd();if(!e)return null;const L0=srcLevel(),T=lev(rampCfg.target)||S.levels.find(l=>l.id!==L0.id)||L0,dh=T.h-e.z,g=Math.max(.1,+rampCfg.g||2.5),len=Math.abs(dh)/(g/100),R=+rampCfg.R||489.2;
   const turns=rampCfg.form==="gerade"?0:len/(TAU*R),perTurn=TAU*R*g/100,clr=perTurn-S.set.board;return{e,L0,T,dh,g,len,R,turns,perTurn,clr}}
+function wantTr(r){return rampCfg.trasse===undefined?r.dh<0:rampCfg.trasse}
 function buildRamp(){const r=rampPlan();if(!r)return;if(Math.abs(r.dh)<1){toast("Ziel liegt auf gleicher Höhe");return}snap();
   const segs=rampCfg.form==="gerade"?[["S",r.len]]:[[rampCfg.form==="links"?"L":"R",r.len]];const grad=Math.sign(r.dh)*r.g;
-  const ps=chainSpecs(r.e,toSpecs(segs,r.R),grad,r.L0.id,uid);ps.forEach(p=>S.pieces.push(p));const lastP=ps[ps.length-1];sel=lastP.id;activeEnd={pid:lastP.id,i:1};S.demo=false;rebuild();toast(`Rampe ${fmt(r.len)} mm bis ${fmt(r.T.h)} mm eingezeichnet`)}
+  const specs=toSpecs(segs,r.R),ps=chainSpecs(r.e,specs,grad,r.L0.id,uid);ps.forEach(p=>S.pieces.push(p));
+  if(rampCfg.n===2){const sg=rampCfg.side==="rechts"?-1:1,nx=-Math.sin(r.e.h*D2R),ny=Math.cos(r.e.h*D2R),s2=offsetSpecs(specs,sg*TRSP),L2=s2.reduce((a,b)=>a+b.len,0),g2=r.dh/L2*100;
+    const te2={x:r.e.x+sg*TRSP*nx,y:r.e.y+sg*TRSP*ny,h:r.e.h,z:r.e.z,pid:"x",i:0};chainSpecs(te2,s2,g2,r.L0.id,uid).forEach(p=>S.pieces.push(p));
+    if(wantTr(r))S.trassen.push({id:uid(),pids:ps.map(p=>p.id),n:2,side:sg});}
+  else if(wantTr(r))S.trassen.push({id:uid(),pids:ps.map(p=>p.id),n:1,side:1});
+  const lastP=ps[ps.length-1];sel=lastP.id;activeEnd={pid:lastP.id,i:1};S.demo=false;rebuild();toast(`Rampe ${fmt(r.len)} mm bis ${fmt(r.T.h)} mm eingezeichnet`)}
 function connPlan(a,b){const R=+conCfg.R||489.2,g=Math.max(.1,+conCfg.g||2.5);const q0={x:a.x,y:a.y,th:a.h*D2R},q1={x:b.x,y:b.y,th:(b.h+180)*D2R};const d=dubins(q0,q1,R);if(!d)return{err:"Kein Weg mit diesem Radius gefunden."};
   const dh=b.z-a.z,need=Math.abs(dh)/(g/100);let loops=0;if(d.L<need)loops=Math.ceil((need-d.L)/(TAU*R)-1e-9);const L=d.L+loops*TAU*R,grad=L>0?dh/L*100:0;const first=d.segs.find(s=>s[1]>0.05&&s[0]!=="S");const ld=first?first[0]:"L";
   return{R,g,d,dh,loops,L,grad,ld,perTurn:loops?TAU*R*Math.abs(grad)/100:0}}
@@ -488,13 +547,13 @@ function connSheet(a,b){const render=()=>{const c=connPlan(a,b);$("cRes").innerH
     <div id="cRes"></div><div class="row"><button class="btn pri" id="cGo">Einzeichnen</button></div>`,()=>{render();$("cR").oninput=e=>{conCfg.R=+e.target.value;render()};$("cG").oninput=e=>{conCfg.g=+e.target.value;render()};$("cGo").onclick=()=>buildConn(a,b)})}
 function cycleEnd(){if(!last||!S.pieces.find(p=>p.id===last.pid)||!last.TE){toast("Erst ein Gleis an ein Ende ansetzen");return}const p=S.pieces.find(q=>q.id===last.pid),n=geom(p).ends.length;const k=(last.k+1)%n;
   S.pieces=S.pieces.filter(q=>q.id!==p.id);rebuild();undo.pop();activeEnd={pid:last.TE.pid,i:last.TE.i};placePart(p.art,k,last.TE)}
-function flipActive(){if(activeEnd&&activeEnd.i!==0){sel=activeEnd.pid}flipSel();if(sel){const p=S.pieces.find(q=>q.id===sel);const fe=freeEnds(p).find(e=>e.i!==0);if(fe)activeEnd={pid:p.id,i:fe.i};render();ui()}}
+function flipActive(){const o=(S.objs||[]).find(q=>q.id===selObj);if(o&&!sel){snap();o.flip=!o.flip;rebuild();return}if(activeEnd&&activeEnd.i!==0){sel=activeEnd.pid}flipSel();if(sel){const p=S.pieces.find(q=>q.id===sel);const fe=freeEnds(p).find(e=>e.i!==0);if(fe)activeEnd={pid:p.id,i:fe.i};render();ui()}}
 function flipSel(){const p=S.pieces.find(q=>q.id===sel);if(!p)return;snap();const a=ART[p.art];if(a.pair)p.art=a.pair;else p.flip=!p.flip;
   if(last&&last.pid===p.id&&last.TE&&last.k!==0)attach(p,last.k,last.TE);rebuild()}
 function group(pid){const g=new Set([pid]),st=[pid];while(st.length){const id=st.pop();conn.con.forEach((o,k)=>{const a=k.split(":")[0];if(a===id&&!g.has(o.pid)){g.add(o.pid);st.push(o.pid)}})}return g}
-function rotateSel(deg){const p=S.pieces.find(q=>q.id===sel);if(!p)return;snap();const g=group(p.id),c=cache.get(p.id).w.paths[0][0];
+function rotateSel(deg){const o=(S.objs||[]).find(q=>q.id===selObj);if(o&&!sel){snap();o.rot=norm(o.rot+deg);rebuild();return}const p=S.pieces.find(q=>q.id===sel);if(!p)return;snap();const g=group(p.id),c=cache.get(p.id).w.paths[0][0];
   S.pieces.forEach(q=>{if(!g.has(q.id))return;const dx=q.x-c.x,dy=q.y-c.y,cs=Math.cos(deg*D2R),sn=Math.sin(deg*D2R);q.x=c.x+dx*cs-dy*sn;q.y=c.y+dx*sn+dy*cs;q.rot=norm(q.rot+deg)});rebuild()}
-function delSel(){if(selMod&&tab==="sub"&&!sel){snap();S.modules=S.modules.filter(m=>m.id!==selMod);selMod=null;rebuild();return}if(!sel&&!selBoard&&roomSel!=null&&S.room&&S.room.length>3){snap();S.room.splice(roomSel,1);roomSel=null;rebuild();return}if(sel){snap();S.pieces=S.pieces.filter(p=>p.id!==sel);if(activeEnd&&activeEnd.pid===sel)activeEnd=null;sel=null;rebuild()}else if(selBoard){snap();S.boards=S.boards.filter(b=>b.id!==selBoard);selBoard=null;rebuild()}}
+function delSel(){if(selObj&&!sel){snap();S.objs=S.objs.filter(o=>o.id!==selObj);selObj=null;rebuild();return}if(selMod&&tab==="sub"&&!sel){snap();S.modules=S.modules.filter(m=>m.id!==selMod);selMod=null;rebuild();return}if(!sel&&!selBoard&&roomSel!=null&&S.room&&S.room.length>3){snap();S.room.splice(roomSel,1);roomSel=null;rebuild();return}if(sel){snap();S.pieces=S.pieces.filter(p=>p.id!==sel);if(activeEnd&&activeEnd.pid===sel)activeEnd=null;sel=null;rebuild()}else if(selBoard){snap();S.boards=S.boards.filter(b=>b.id!==selBoard);selBoard=null;rebuild()}}
 function doUndo(){if(!undo.length)return;redo.push(JSON.stringify(S));S=JSON.parse(undo.pop());sel=null;activeEnd=null;rebuild()}
 function doRedo(){if(!redo.length)return;undo.push(JSON.stringify(S));S=JSON.parse(redo.pop());sel=null;activeEnd=null;rebuild()}
 function fit(){let x0=0,y0=0,x1=S.set.frameW,y1=S.set.frameH;(S.room||[]).forEach(q=>{x0=Math.min(x0,q.x);y0=Math.min(y0,q.y);x1=Math.max(x1,q.x);y1=Math.max(y1,q.y)});cache.forEach(c=>{x0=Math.min(x0,c.bb[0]);y0=Math.min(y0,c.bb[1]);x1=Math.max(x1,c.bb[2]);y1=Math.max(y1,c.bb[3])});
@@ -506,6 +565,9 @@ let drag=null,mouse=null;const ptrs=new Map();
 function hitEnd(X,Y){let best=null,bd=14;S.pieces.forEach(p=>{if(!lev(p.level).vis)return;cache.get(p.id).ends.forEach(e=>{if(conn.con.has(p.id+":"+e.i))return;const d=Math.hypot(sx(e.x)-X,sy(e.y)-Y);if(d<bd){bd=d;best={pid:p.id,i:e.i}}})});return best}
 function hitPiece(X,Y){const x=wx(X),y=wy(Y),tol=Math.max(16,12/view.k);let best=null,bd=tol;const vis=new Set(S.levels.filter(l=>l.vis).map(l=>l.id));
   S.pieces.forEach(p=>{if(!vis.has(p.level))return;const c=cache.get(p.id);if(x<c.bb[0]-tol-200||x>c.bb[2]+tol+200||y<c.bb[1]-tol-200||y>c.bb[3]+tol+200)return;(c.w.pit?[...c.w.paths,c.w.pit]:c.w.paths).forEach(pts=>pts.forEach(q=>{const d=Math.hypot(q.x-x,q.y-y)-(p.level===S.active?2:0);if(d<bd){bd=d;best=p.id}}))});return best}
+function hitObj(X,Y){const x=wx(X),y=wy(Y);const o=(S.objs||[]).find(o=>{if(!lev(o.level).vis)return false;const l=objInv(o,x,y),d=o.flip?-o.dep:o.dep,hw=o.wIn/2+o.wall;return Math.min(0,d)-10<=l.x&&l.x<=Math.max(0,d)+10&&Math.abs(l.y)<=hw+6});return o?o.id:null}
+function snapTrack(x,y,tol){let best=null,bd=tol;S.pieces.forEach(p=>{if(!lev(p.level).vis||geom(p).tt)return;const c=cache.get(p.id);if(!c)return;c.w.paths.forEach(pts=>pts.forEach((q,i)=>{const d=Math.hypot(q.x-x,q.y-y);if(d<bd){const a=pts[Math.max(0,i-1)],b=pts[Math.min(pts.length-1,i+1)];bd=d;best={x:q.x,y:q.y,z:q.z,h:Math.atan2(b.y-a.y,b.x-a.x)/D2R,level:p.level,pid:p.id}}}))});return best}
+function placePortal(o,q){o.rot=q.h;o.level=q.level;o.z=q.z;let off=0;if(o.n===2){const nx=-Math.sin(q.h*D2R),ny=Math.cos(q.h*D2R);const side=[1,-1].find(sg=>snapTrack(q.x+sg*TRSP*nx,q.y+sg*TRSP*ny,12)&&snapTrack(q.x+sg*TRSP*nx,q.y+sg*TRSP*ny,12).pid!==q.pid)||1;off=side*TRSP/2;o.x=q.x+off*nx;o.y=q.y+off*ny}else{o.x=q.x;o.y=q.y}}
 function hitModule(X,Y){const x=wx(X),y=wy(Y);const m=(S.modules||[]).find(m=>x>=m.x&&x<=m.x+m.w&&y>=m.y&&y<=m.y+m.d);return m?m.id:null}
 function hitBoard(X,Y){const x=wx(X),y=wy(Y);const bs=S.boards.filter(b=>lev(b.level).vis&&x>=b.x&&x<=b.x+b.w&&y>=b.y&&y<=b.y+b.h);bs.sort((a,b)=>(a.level===S.active?-1:0)-(b.level===S.active?-1:0));return bs[0]?bs[0].id:null}
 cv.addEventListener("pointerdown",ev=>{cv.setPointerCapture(ev.pointerId);ptrs.set(ev.pointerId,{X:ev.offsetX,Y:ev.offsetY});
@@ -514,12 +576,15 @@ cv.addEventListener("pointerdown",ev=>{cv.setPointerCapture(ev.pointerId);ptrs.s
   ptrShift=ev.shiftKey;
   if(mode==="board"){drag={type:"board",X0:X,Y0:Y,X1:X,Y1:Y};return}
   if(mode==="module"){drag={type:"mod",X0:X,Y0:Y,X1:X,Y1:Y};return}
+  if(mode==="portal"){drag={type:"none"};const q=snapTrack(wx(X),wy(Y),60/view.k+20);if(!q){toast("Bitte direkt auf ein Gleis tippen");return}snap();
+    const o={id:uid(),type:"portal",n:portalN,wIn:portalN===2?100+TRSP:100,hIn:80,wall:20,dep:60,flip:false,level:q.level,z:q.z,x:q.x,y:q.y,rot:q.h};placePortal(o,q);S.objs.push(o);selObj=o.id;sel=null;selBoard=null;setMode("sel");tab="sel";rebuild();return}
   if(mode==="room"){const f=roomDraft[0];if(f&&roomDraft.length>=3&&Math.hypot(sx(f.x)-X,sy(f.y)-Y)<14){closeRoom();return}roomDraft.push(roomPt(X,Y));render();drag={type:"none"};return}
   if(mode==="connect"){const he=hitEnd(X,Y);drag={type:"none"};if(he&&activeEnd&&!(he.pid===activeEnd.pid&&he.i===activeEnd.i)){const a=cache.get(activeEnd.pid).ends[activeEnd.i],b=cache.get(he.pid).ends[he.i];setMode("sel");connSheet(a,b)}else toast("Ziel: ein offenes Gleisende antippen");return}
   if(S.room&&S.room.length){const vi=S.room.findIndex(q=>Math.hypot(sx(q.x)-X,sy(q.y)-Y)<9);if(vi>=0&&tab==="lev"){roomSel=vi;drag={type:"rv",i:vi,moved:false};return}}
   const he=hitEnd(X,Y);if(he){drag={type:"none"};if(activeEnd&&he.pid===activeEnd.pid&&he.i===activeEnd.i){const src=S.pieces.find(q=>q.id===he.pid);const lp=last&&S.pieces.find(q=>q.id===last.pid);const s2=src&&!geom(src).tt?src:lp&&!geom(lp).tt?lp:null;if(s2)placeLike(s2);else toast("Gleis aus der Bibliothek wählen");return}
     activeEnd=he;sel=he.pid;selBoard=null;render();ui();return}
-  const hp=hitPiece(X,Y);if(hp){sel=hp;selBoard=null;roomSel=null;{const fe=freeEnds(S.pieces.find(p=>p.id===hp));const pick=fe.find(e=>e.i!==0)||fe[0];if(pick&&!geom(S.pieces.find(p=>p.id===hp)).tt)activeEnd={pid:hp,i:pick.i}}const g=group(hp);drag={type:"move",X,Y,g,orig:S.pieces.filter(p=>g.has(p.id)).map(p=>({id:p.id,x:p.x,y:p.y})),moved:false};render();ui();return}
+  const hp=hitPiece(X,Y);if(hp){selObj=null;selTr=(S.trassen||[]).find(t=>t.pids.includes(hp))?.id||null;sel=hp;selBoard=null;roomSel=null;{const fe=freeEnds(S.pieces.find(p=>p.id===hp));const pick=fe.find(e=>e.i!==0)||fe[0];if(pick&&!geom(S.pieces.find(p=>p.id===hp)).tt)activeEnd={pid:hp,i:pick.i}}const g=group(hp);drag={type:"move",X,Y,g,orig:S.pieces.filter(p=>g.has(p.id)).map(p=>({id:p.id,x:p.x,y:p.y})),moved:false};render();ui();return}
+  const ho=hitObj(X,Y);if(ho){selObj=ho;sel=null;selBoard=null;selTr=null;const o=S.objs.find(q=>q.id===ho);drag={type:"omove",X,Y,o,ox:o.x,oy:o.y,moved:false};tab="sel";render();ui();return}
   const hm=hitModule(X,Y);if(hm&&tab==="sub"){selMod=hm;sel=null;selBoard=null;const m=S.modules.find(q=>q.id===hm);drag={type:"mmove",X,Y,m,ox:m.x,oy:m.y,moved:false};render();ui();return}
   const hb=hitBoard(X,Y);if(hb&&ev.detail>=1&&ev.altKey!==true){selBoard=hb;sel=null;const b=S.boards.find(b=>b.id===hb);drag={type:"bmove",X,Y,b,ox:b.x,oy:b.y,moved:false};render();ui();return}
   sel=null;selBoard=null;drag={type:"pan",X,Y,vx:view.x,vy:view.y,moved:false};cv.classList.add("pan");ui()});
@@ -532,6 +597,7 @@ cv.addEventListener("pointermove",ev=>{mouse={X:ev.offsetX,Y:ev.offsetY};ptrShif
   else if(drag.type==="bmove"){if(!drag.moved&&Math.hypot(X-drag.X,Y-drag.Y)<4)return;if(!drag.moved){snap();drag.moved=true}drag.b.x=Math.round(drag.ox+(X-drag.X)/view.k);drag.b.y=Math.round(drag.oy-(Y-drag.Y)/view.k);render()}
   else if(drag.type==="board"){drag.X1=X;drag.Y1=Y;render()}
   else if(drag.type==="mod"){drag.X1=X;drag.Y1=Y;render()}
+  else if(drag.type==="omove"){if(!drag.moved&&Math.hypot(X-drag.X,Y-drag.Y)<4)return;if(!drag.moved){snap();drag.moved=true}drag.o.x=drag.ox+(X-drag.X)/view.k;drag.o.y=drag.oy-(Y-drag.Y)/view.k;render()}
   else if(drag.type==="mmove"){if(!drag.moved&&Math.hypot(X-drag.X,Y-drag.Y)<4)return;if(!drag.moved){snap();drag.moved=true}drag.m.x=Math.round((drag.ox+(X-drag.X)/view.k)/10)*10;drag.m.y=Math.round((drag.oy-(Y-drag.Y)/view.k)/10)*10;render()}
   else if(drag.type==="rv"){if(!drag.moved){snap();drag.moved=true}S.room[drag.i]={x:Math.round(wx(X)/10)*10,y:Math.round(wy(Y)/10)*10};render()}});
 function cacheOnly(){cache=new Map();S.pieces.forEach(p=>{const w=worldPaths(p),ends=worldEnds(p);let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;w.paths.flat().forEach(q=>{x0=Math.min(x0,q.x);y0=Math.min(y0,q.y);x1=Math.max(x1,q.x);y1=Math.max(y1,q.y)});cache.set(p.id,{w,ends,bb:[x0,y0,x1,y1]})});conn=connections(S.pieces)}
@@ -544,6 +610,7 @@ cv.addEventListener("pointerup",ev=>{ptrs.delete(ev.pointerId);cv.classList.remo
   else if(drag.type==="bmove"&&drag.moved){rebuild()}
   else if(drag.type==="rv"){if(drag.moved)rebuild();else ui()}
   else if(drag.type==="mmove"){if(drag.moved)rebuild()}
+  else if(drag.type==="omove"){if(drag.moved){const q=snapTrack(drag.o.x,drag.o.y,50);if(q){placePortal(drag.o,q);toast("Am Gleis eingerastet")}rebuild()}}
   else if(drag.type==="mod"){const x0=wx(Math.min(drag.X0,drag.X1)),x1=wx(Math.max(drag.X0,drag.X1)),y1=wy(Math.min(drag.Y0,drag.Y1)),y0=wy(Math.max(drag.Y0,drag.Y1));
     if(x1-x0>150&&y1-y0>150){snap();const r=v=>Math.round(v/10)*10,m={id:uid(),name:"Modul "+((S.modules||[]).length+1),x:r(x0),y:r(y0),w:r(x1-x0),d:r(y1-y0),ins:"vorne"};S.modules.push(m);selMod=m.id;sel=null;selBoard=null;tab="sub";setMode("sel");rebuild()}else render()}
   else if(drag.type==="pan"&&!drag.moved){activeEnd=null;render()}
@@ -559,7 +626,7 @@ document.addEventListener("keydown",ev=>{if(/INPUT|TEXTAREA|SELECT/.test(documen
 
 // ---------- Oberfläche ----------
 const $=id=>document.getElementById(id);
-function setMode(m){if(mode==="room"&&m!=="room")roomDraft=[];mode=m;$("mSel").classList.toggle("on",m==="sel");$("mBoard").classList.toggle("on",m==="board");$("mRoom").classList.toggle("on",m==="room");$("mMod").classList.toggle("on",m==="module");cv.classList.toggle("board",m==="board"||m==="room"||m==="connect"||m==="module");if(m==="module"){tab="sub";ui();toast("Rechteck aufziehen: Unterbau-Modul")}
+function setMode(m){if(mode==="room"&&m!=="room")roomDraft=[];mode=m;$("mSel").classList.toggle("on",m==="sel");$("mBoard").classList.toggle("on",m==="board");$("mRoom").classList.toggle("on",m==="room");$("mMod").classList.toggle("on",m==="module");cv.classList.toggle("board",m==="board"||m==="room"||m==="connect"||m==="module"||m==="portal");if(m==="portal")toast(`Gleis antippen: Portal ${portalN}-gleisig wird dort quer gesetzt`);if(m==="module"){tab="sub";ui();toast("Rechteck aufziehen: Unterbau-Modul")}
   if(m==="board")toast("Rechteck aufziehen: Platte für "+lev(S.active).name);if(m==="room")toast("Raumecken antippen · Umschalt = 15°-Raster · ersten Punkt oder Doppeltipp schließt");if(m==="connect")toast("Ziel: ein offenes Gleisende antippen");render()}
 function partIcon(art){const c=document.createElement("canvas");c.width=200;c.height=68;const x=c.getContext("2d"),p={id:"i",art,x:0,y:0,rot:0,flip:false,z:0,grad:0,flex:{r:600,len:500}},w=worldPaths(p);
   let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;[...w.paths.flat(),...(w.pit||[])].forEach(q=>{x0=Math.min(x0,q.x);y0=Math.min(y0,q.y);x1=Math.max(x1,q.x);y1=Math.max(y1,q.y)});
@@ -567,14 +634,28 @@ function partIcon(art){const c=document.createElement("canvas");c.width=200;c.he
   const col=css("--ink");if(w.pit){x.strokeStyle=col;x.lineWidth=3;x.beginPath();w.pit.forEach((q,i)=>i?x.lineTo(ox+q.x*k,oy-q.y*k):x.moveTo(ox+q.x*k,oy-q.y*k));x.stroke()}[w.deco,w.paths].forEach((set,j)=>set.forEach(pts=>{x.strokeStyle=j?col:col+"55";x.lineWidth=j?6:4;x.beginPath();pts.forEach((q,i)=>i?x.lineTo(ox+q.x*k,oy-q.y*k):x.moveTo(ox+q.x*k,oy-q.y*k));x.stroke()}));
   return c}
 function buildLib(){const box=$("libList");box.innerHTML="";CATS.forEach(c=>{const h=document.createElement("div");h.className="cat";h.textContent=c.n;box.appendChild(h);const g=document.createElement("div");g.className="parts";
-  c.items.forEach(a=>{const b=document.createElement("button");b.className="part";b.title=ART[a].name;b.appendChild(partIcon(a));b.insertAdjacentHTML("beforeend",`<b>${a}</b><span>${esc(ART[a].name.split(" · ")[0])}</span>`);b.onclick=()=>{placeMany(a);if(W<861)$("lib").classList.add("closed")};g.appendChild(b)});box.appendChild(g)})}
-function ui(){$("bDel").disabled=!sel&&!selBoard&&roomSel==null&&!(selMod&&tab==="sub");["bRotL","bRotR","bFlip"].forEach(i=>$(i).disabled=!sel);$("bUndo").disabled=!undo.length;$("bRedo").disabled=!redo.length;
+  c.items.forEach(a=>{const b=document.createElement("button");b.className="part";b.title=ART[a].name;b.appendChild(partIcon(a));b.insertAdjacentHTML("beforeend",`<b>${a}</b><span>${esc(ART[a].name.split(" · ")[0])}</span>`);b.onclick=()=>{placeMany(a);if(W<861)$("lib").classList.add("closed")};g.appendChild(b)});box.appendChild(g)});
+  const h=document.createElement("div");h.className="cat";h.textContent="Bauwerke";box.appendChild(h);const g=document.createElement("div");g.className="parts";
+  [[1,"Tunnelportal","eingleisig"],[2,"Tunnelportal","zweigleisig"]].forEach(([n,t,u])=>{const b=document.createElement("button");b.className="part";b.title=`${t} ${u}`;
+    b.innerHTML=`<svg viewBox="0 0 100 34" style="width:100%;height:34px"><path d="M${n===1?30:18} 32V14a${n===1?20:32} ${n===1?20:32} 0 0 1 ${n===1?40:64} 0v18" fill="none" stroke="currentColor" stroke-width="5"/><path d="M8 32h84" stroke="currentColor" stroke-width="2"/></svg><b>Portal</b><span>${u}</span>`;
+    b.onclick=()=>{portalN=n;setMode("portal");if(W<861)$("lib").classList.add("closed")};g.appendChild(b)});box.appendChild(g)}
+function ui(){$("bDel").disabled=!sel&&!selBoard&&!selObj&&roomSel==null&&!(selMod&&tab==="sub");["bRotL","bRotR","bFlip"].forEach(i=>{if(selObj&&!sel)$(i).disabled=false});["bRotL","bRotR","bFlip"].forEach(i=>$(i).disabled=!sel);$("bUndo").disabled=!undo.length;$("bRedo").disabled=!redo.length;
   const ne=problems.filter(p=>p.sev==="err").length;["badgeT","badgeM"].forEach(i=>{$(i).hidden=!ne;$(i).textContent=ne});
   document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("on",t.dataset.tab===tab));
   const B=$("tabBody");B.innerHTML=tab==="sel"?tabSel():tab==="lev"?tabLev():tab==="chk"?tabChk():tab==="sub"?tabSub():tabMat();bindTab()}
 function num(id,v,step=1,extra=""){return`<input type="number" id="${id}" value="${Math.round(v*100)/100}" step="${step}" ${extra}>`}
 function tabSel(){const p=S.pieces.find(q=>q.id===sel),b=S.boards.find(q=>q.id===selBoard);let h="";
   if(S.demo)h+=`<div class="sec"><div class="row"><span class="demo">Beispiel</span></div><p class="muted">Ein Beispielplan mit drei Ebenen ist geladen. Er zeigt die Prüfungen: Ebene 1 liegt 60 mm über Ebene 0, abzüglich 12 mm Platte bleiben 48 mm lichte Höhe.</p><button class="btn" id="newPlan">Leeren Plan beginnen</button></div>`;
+  const ob=(S.objs||[]).find(q=>q.id===selObj);
+  if(ob&&!p){h+=`<div class="sec"><h3>Tunnelportal ${ob.n}-gleisig</h3>
+    <div class="row"><label>Gleise</label><select id="oN"><option value="1" ${ob.n===1?"selected":""}>eingleisig</option><option value="2" ${ob.n===2?"selected":""}>zweigleisig</option></select></div>
+    <div class="row"><label>Lichte Breite</label>${num("oW",ob.wIn,1)}<span class="muted">mm</span></div>
+    <div class="row"><label>Lichte Höhe</label>${num("oH",ob.hIn,1)}<span class="muted">mm über SO</span></div>
+    <div class="row"><label>Wandstärke</label>${num("oWa",ob.wall,1)}<span class="muted">mm</span></div>
+    <div class="row"><label>Tiefe</label>${num("oD",ob.dep,1)}<span class="muted">mm</span></div>
+    <div class="row muted mono">Höhe SO ${fmt(ob.z)} mm · ${esc(lev(ob.level).name)}</div>
+    <div class="row"><button class="btn" id="oFlip">Richtung umkehren</button><button class="btn" id="oSnap">Am Gleis ausrichten</button></div>
+    <p class="muted">Ziehen verschiebt das Portal, beim Loslassen rastet es am nächsten Gleis ein. R dreht, F kehrt um. Maße nach NEM 102 mit Reserve, änderbar.</p></div>`}
   if(p){const a=ART[p.art],g=geom(p),L=lev(p.level),ends=cache.get(p.id).ends;
     h+=`<div class="sec"><h3>${p.art} · ${esc(a.name.split(" · ")[0])}</h3><div class="muted">${esc(a.name)}${a.alt?` (${a.alt}, gleiche Maße)`:""}</div>
     <div class="row"><label>Ebene</label><select id="pLev">${S.levels.map(l=>`<option value="${l.id}" ${l.id===p.level?"selected":""}>${esc(l.name)}</option>`).join("")}</select></div>
@@ -583,12 +664,19 @@ function tabSel(){const p=S.pieces.find(q=>q.id===sel),b=S.boards.find(q=>q.id==
     <div class="info" id="gInfo">Positiv = steigt vom Anfang (Ende 1) weg. Neue Gleise am Ende übernehmen die Steigung, so baust du eine Rampe einfach weiter. Auf 0 setzen, wo die Rampe endet.</div>
     ${a.flex?`<div class="row"><label>Länge</label>${num("fL",p.flex.len,1,'min="10" max="900"')}<span class="muted">mm</span></div><div class="row"><label>Radius</label>${num("fR",p.flex.r,1,'min="0"')}<span class="muted">mm (0 = gerade)</span></div>`:""}
     <div class="row muted mono">Radius ${fmt(g.radius)}${isFinite(g.radius)?" mm":""} · Enden ${ends.map(e=>fmt(e.z)).join(" / ")} mm</div>
-    <div class="row"><button class="btn" id="pRise">Ganze Strecke anheben …</button></div></div>`;
+    <div class="row"><button class="btn" id="pRise">Ganze Strecke anheben …</button><label><input type="checkbox" id="pTun" ${p.tun?"checked":""}> im Tunnel</label></div></div>`;
+    {const t=(S.trassen||[]).find(t=>t.pids.includes(p.id));if(t){const r=trasseOf(t),ko=r.sup.filter(k=>k.type==="konsole"),st=r.sup.filter(k=>k.type==="stuetze");
+      h+=`<div class="sec"><div class="row" style="justify-content:space-between"><h3 style="margin:0">Trasse ${t.n}-gleisig</h3><button class="btn warn" id="trDel">Entfernen</button></div>
+      <p class="mono">${fmt(r.L)} mm lang · ${fmt(t.n===2?S.tr.w1+TRSP:S.tr.w1)} mm breit · ${ko.length} Konsolen an Füßen · ${st.length} Stützen</p>
+      <table><thead><tr><th>bei</th><th>Art</th><th style="text-align:right">UK über Boden</th><th style="text-align:right">Konsole</th></tr></thead><tbody>${r.sup.map(k=>`<tr><td class="mono">${fmt(k.s)}</td><td>${k.type==="konsole"?"Konsole am Fuß":"Stütze"}</td><td class="n" ${k.h<=0?'style="color:var(--err)"':""}>${fmt(k.h)}</td><td class="n">${k.type==="konsole"?fmt(k.len):"–"}</td></tr>`).join("")||'<tr><td colspan="4" class="muted">Keine Stützen nötig.</td></tr>'}</tbody></table>
+      <p class="muted">Höhen ab Boden bei Anlagenhöhe ${fmt(subHeight(S.sub,S.set.board))} mm (Unterbau). Trassenbrett ${fmt(S.set.board)} mm.</p></div>`}
+    else if(rampChain(p.id).length)h+=`<div class="sec"><h3>Trasse</h3><p class="muted">Trassenbrett unter dieser Strecke, gehalten von Konsolen an den Modulbeinen; wo keine Beine in Reichweite sind, kommen Stützen dazu.</p>
+      <div class="row"><button class="btn" data-trn="1">Eingleisig</button><button class="btn" data-trn="2l">2-gl., 2. Gleis links</button><button class="btn" data-trn="2r">2-gl., rechts</button></div></div>`}
     if(rampChain(p.id).some(c=>Math.abs(c.p.grad||0)>1e-9))h+=`<div class="sec"><div class="row" style="justify-content:space-between"><h3 style="margin:0">Seitenansicht Rampe</h3><button class="btn" id="profBig">Groß</button></div>${profileSVG(p.id,300,180)}</div>`}
   else if(b){h+=`<div class="sec"><h3>Platte</h3><div class="row"><label>Ebene</label><select id="bLev">${S.levels.map(l=>`<option value="${l.id}" ${l.id===b.level?"selected":""}>${esc(l.name)}</option>`).join("")}</select></div>
     <div class="row"><label>Breite</label>${num("bW",b.w,5)}<span class="muted">mm</span></div><div class="row"><label>Tiefe</label>${num("bH",b.h,5)}<span class="muted">mm</span></div>
     <div class="row"><label>Lage x / y</label>${num("bX",b.x,5)}${num("bY",b.y,5)}</div></div>`}
-  else h+=`<div class="sec"><h3>Nichts ausgewählt</h3><p class="muted">Gleis antippen zum Bearbeiten. Ein Gleis ziehen verschiebt die ganze verbundene Strecke; an einem offenen Ende rastet sie ein.</p></div>`;
+  else if(!ob)h+=`<div class="sec"><h3>Nichts ausgewählt</h3><p class="muted">Gleis antippen zum Bearbeiten. Ein Gleis ziehen verschiebt die ganze verbundene Strecke; an einem offenen Ende rastet sie ein.</p></div>`;
   const se=srcEnd();
   if(se){const r=rampPlan(),others=S.levels.filter(l=>Math.abs(l.h-se.z)>=1);if(!rampCfg.target||!others.find(l=>l.id===rampCfg.target))rampCfg.target=others[0]?others[0].id:null;
     h+=`<div class="sec"><h3>Weiter ab dem roten Ende</h3><div class="muted mono">Höhe ${fmt(se.z)} mm · Richtung ${fmt(se.h)}°</div>
@@ -597,6 +685,8 @@ function tabSel(){const p=S.pieces.find(q=>q.id===sel),b=S.boards.find(q=>q.id==
     <div class="row"><label>Ziel</label><select id="rT">${others.map(l=>`<option value="${l.id}" ${l.id===rampCfg.target?"selected":""}>${esc(l.name)} · ${fmt(l.h)} mm</option>`).join("")}</select></div>
     <div class="row"><label>Form</label><select id="rF"><option value="gerade" ${rampCfg.form==="gerade"?"selected":""}>gerade</option><option value="links" ${rampCfg.form==="links"?"selected":""}>Wendel links</option><option value="rechts" ${rampCfg.form==="rechts"?"selected":""}>Wendel rechts</option></select></div>
     ${rampCfg.form!=="gerade"?`<div class="row"><label>Radius</label>${num("rR",rampCfg.R,1)}<span class="muted">mm</span></div>`:""}
+    <div class="row"><label>Gleise</label><select id="rN"><option value="1" ${rampCfg.n!==2?"selected":""}>eingleisig</option><option value="2l" ${rampCfg.n===2&&rampCfg.side!=="rechts"?"selected":""}>zweigleisig, 2. Gleis links</option><option value="2r" ${rampCfg.n===2&&rampCfg.side==="rechts"?"selected":""}>zweigleisig, 2. Gleis rechts</option></select></div>
+    <div class="row"><label><input type="checkbox" id="rTr" ${wantTr(rampPlan())?"checked":""}> Trasse mit Stützen anlegen</label></div>
     <div class="row"><label>Steigung</label>${num("rS",rampCfg.g,.1)}<span class="muted">%</span></div>
     <div class="row mono" id="rOut">${rampTxt(rampPlan())}</div>
     <div class="row"><button class="btn pri" id="rGo">Rampe einzeichnen</button></div>`:`<p class="muted">Für eine Rampe zuerst eine zweite Ebene anlegen.</p>`}</div>`}
@@ -640,7 +730,7 @@ function tabLev(){const st=S.set;let h=`<div class="sec"><div class="row" style=
     <div class="row"><label>Lichte Höhe min.</label>${num("sC",st.clear,1)}<span class="muted">mm</span><button class="ibtn" data-info="cInfo">i</button></div>
     <div class="info" id="cInfo">NEM 102 für H0: 59 mm über Schienenoberkante (H4), mit Fahrleitung 65 mm (H5). Gemessen wird Höhe der oberen Schienenoberkante minus Plattenstärke minus untere Schienenoberkante.</div></div>`;
   return h}
-let lvOpen=null,roomSel=null,selMod=null;
+let lvOpen=null,roomSel=null,selMod=null,selObj=null,selTr=null,portalN=1;
 function tabChk(){if(!problems.length)return`<div class="sec"><div class="okbox"><span class="dot" style="background:var(--ok)"></span><div><b>Alles in Ordnung</b><div class="muted">Radien, Steigungen, lichte Höhen und Stöße passen.</div></div></div></div>`;
   const ne=problems.filter(p=>p.sev==="err").length;let h=`<div class="sec"><p class="muted">${ne} Fehler${problems.length>ne?` · ${problems.length-ne} Hinweis`:""}. Antippen zeigt die Stelle.</p>`;
   problems.forEach((p,i)=>h+=`<div class="prob" data-pr="${i}"><span class="dot s-${p.sev}"></span><span><b>${esc(p.t)}</b><div>${esc(p.d)}</div></span></div>`);return h+"</div>"}
@@ -671,6 +761,11 @@ function tabSub(){const su=S.sub,ms=S.modules||[],m=ms.find(q=>q.id===selMod),H=
   <div class="row"><label>Zarge Stärke</label>${num("uFt",su.frameT,1)}<span class="muted">mm</span></div>
   <div class="row"><label>Max. Fußabstand</label>${num("uM",su.maxSpan,10)}<span class="muted">mm</span></div>
   <div class="row"><label>Modul max.</label>${num("uMM",su.maxMod,10)}<span class="muted">mm Kantenlänge</span></div>
+  </div><div class="sec"><h3>Trassen außerhalb</h3>
+  <div class="row"><label>Breite eingleisig</label>${num("tW",S.tr.w1,5)}<span class="muted">mm (zweigleisig + ${fmt(TRSP)})</span></div>
+  <div class="row"><label>Konsole max.</label>${num("tR",S.tr.reach,10)}<span class="muted">mm vom Fuß</span></div>
+  <div class="row"><label>Stützabstand max.</label>${num("tS",S.tr.maxSpan,10)}<span class="muted">mm</span></div>
+  <p class="muted">Trasse anlegen: Rampengleis antippen → „Auswahl“ → Trasse. Oder beim Einzeichnen einer Rampe mit anlegen.</p>
   <div class="row"><button class="btn" id="uSplit">Rahmen in Module teilen</button><button class="btn" id="uDraw">Modul zeichnen</button></div></div>`;
   h+=`<div class="sec"><h3>Module</h3>${ms.length?ms.map(q=>{const c=subCalc(q,su,S.set.board);return`<div class="lv ${q.id===selMod?"on":""}"><span class="sw" style="background:var(--ink)"></span><span class="nm" data-msel="${q.id}">${esc(q.name||"Modul")}</span><span></span><span></span><div class="meta">${fmt(q.w)} × ${fmt(q.d)} · Einschub ${q.ins} · ${c.slots.length} Kisten · ${c.legs.length} Füße</div></div>`}).join(""):'<p class="muted">Noch keine Module. „Rahmen in Module teilen“ oder ein Modul zeichnen (Taste U).</p>'}</div>`;
   if(m){const c=subCalc(m,su,S.set.board);h+=`<div class="sec"><h3>${esc(m.name||"Modul")}</h3>
@@ -688,6 +783,11 @@ function tabMat(){const cnt=new Map();let flex=0,flexN=0;S.pieces.forEach(p=>{if
   let h=`<div class="sec"><h3>Gleisstückliste</h3><table><thead><tr><th>Art.</th><th>Gleis</th><th style="text-align:right">Stk.</th></tr></thead><tbody>${rows||'<tr><td colspan="3" class="muted">Noch keine Gleise.</td></tr>'}
   ${flexN?`<tr><td class="mono">2205</td><td>Flexgleis, ${flexN} Abschnitte · ${fmt(flex)} mm</td><td class="n">${Math.ceil(flex/900)}</td></tr>`:""}</tbody></table>
   ${flexN?'<p class="muted">Flexgleis: Stückzahl ist eine Schätzung aus der Gesamtlänge, ohne Verschnitt.</p>':""}</div>`;
+  const trs=S.trassen||[],ob=S.objs||[];if(trs.length||ob.length){const g=new Map(),add=(k,n=1)=>g.set(k,(g.get(k)||0)+n);let len=0;
+    trs.forEach(t=>{const r=trasseOf(t);len+=r.L;add(`Trassenbrett ${fmt(t.n===2?S.tr.w1+TRSP:S.tr.w1)} mm breit|${Math.round(r.L)}`);r.sup.forEach(k=>{if(k.type==="konsole")add(`Konsole (am Fuß)|${Math.round(k.len/10)*10}`);else add(`Stütze bis UK Trasse|${Math.round(k.h/10)*10}`)})});
+    ob.forEach(o=>add(`Tunnelportal ${o.n}-gleisig, lichte Breite ${fmt(o.wIn)}|${Math.round(o.hIn)}`));
+    h+=`<div class="sec"><h3>Trassen und Bauwerke</h3><table><thead><tr><th>Teil</th><th style="text-align:right">Maß mm</th><th style="text-align:right">Stk.</th></tr></thead><tbody>${[...g].sort((a,b)=>a[0].localeCompare(b[0])).map(([k,n])=>{const [t,l]=k.split("|");return`<tr><td>${esc(t)}</td><td class="n">${fmt(+l)}</td><td class="n">${n}</td></tr>`}).join("")}</tbody></table>
+    <p class="muted">Konsolenlänge = Abstand Fuß bis Trassenkante, Stütze = Bodenhöhe bis Unterkante Trasse (auf 10 mm gerundet).</p></div>`}
   const ms=S.modules||[];if(ms.length){const su=S.sub;let legs=0,legLen=0,z=[];ms.forEach(m=>{const c=subCalc(m,su,S.set.board);legs+=c.legs.length;legLen=c.legLen;z.push([m.name||"Modul",m.w,m.d,Math.max(0,Math.ceil(m.w/600)-1)])});
     h+=`<div class="sec"><h3>Unterbau</h3><table><thead><tr><th>Teil</th><th style="text-align:right">Maß mm</th><th style="text-align:right">Stk.</th></tr></thead><tbody>
     <tr><td>Fuß Kantholz ${fmt(su.legW)} × ${fmt(su.legW)}</td><td class="n">${fmt(legLen)}</td><td class="n">${legs}</td></tr>
@@ -706,15 +806,21 @@ function bindTab(){const on=(id,ev,f)=>{const e=$(id);if(e)e.addEventListener(ev
     on("pRise","click",()=>sheet("Strecke anheben",`<p class="muted">Hebt alle mit diesem Gleis verbundenen Gleise um denselben Wert an (negativ = absenken).</p><div class="row"><label>Um</label><input type="number" id="riseV" value="10" step="1"><span class="muted">mm</span></div><button class="btn pri" id="riseGo">Anheben</button>`,()=>{$("riseGo").onclick=()=>{const v=+$("riseV").value,g=group(p.id);snap();S.pieces.forEach(q=>{if(g.has(q.id))q.z+=v});closeSheet();rebuild()}}))}
   if(b){on("bLev","change",e=>{snap();b.level=e.target.value;rebuild()});[["bW","w"],["bH","h"],["bX","x"],["bY","y"]].forEach(([i,k])=>on(i,"change",e=>{snap();b[k]=+e.target.value;rebuild()}))}
   [["uW","boxW"],["uD","boxD"],["uH","boxH"],["uT","top"],["uS","side"],["uG","gap"],["uA","height"],["uL","legW"],["uF","frameH"],["uFt","frameT"],["uM","maxSpan"],["uMM","maxMod"]].forEach(([i,k])=>on(i,"change",e=>{snap();S.sub[k]=Math.max(0,+e.target.value);if(/^box/.test(k))S.sub.example=false;rebuild()}));
-  on("uDraw","click",()=>setMode("module"));
+  on("uDraw","click",()=>setMode("module"));[["tW","w1"],["tR","reach"],["tS","maxSpan"]].forEach(([i,k])=>on(i,"change",e=>{snap();S.tr[k]=Math.max(10,+e.target.value);rebuild()}));
   on("uSplit","click",()=>{const w=S.set.frameW,d=S.set.frameH;if(!(w>0&&d>0)){toast("Erst einen Rahmen unter Ebenen setzen");return}snap();const nx=Math.ceil(w/S.sub.maxMod),ny=Math.ceil(d/S.sub.maxMod),mw=Math.round(w/nx),md=Math.round(d/ny);S.modules=[];let i=1;
     for(let a=0;a<nx;a++)for(let b=0;b<ny;b++)S.modules.push({id:uid(),name:"Modul "+(i++),x:a*mw,y:b*md,w:a===nx-1?w-a*mw:mw,d:b===ny-1?d-b*md:md,ins:b===0?"vorne":"hinten"});selMod=S.modules[0].id;rebuild();toast(`${S.modules.length} Module angelegt`)});
   document.querySelectorAll("[data-msel]").forEach(x=>x.onclick=()=>{selMod=x.dataset.msel;ui();render()});
   {const m=(S.modules||[]).find(q=>q.id===selMod);if(m){on("mN","change",e=>{snap();m.name=e.target.value;rebuild()});on("mW","change",e=>{snap();m.w=Math.max(150,+e.target.value);rebuild()});on("mD","change",e=>{snap();m.d=Math.max(150,+e.target.value);rebuild()});
     on("mI","change",e=>{snap();m.ins=e.target.value;rebuild()});on("mDel","click",()=>{snap();S.modules=S.modules.filter(q=>q.id!==m.id);selMod=null;rebuild()});on("mBig","click",()=>sheet(m.name||"Modul",subSVG(m,620)));
     on("mFit","click",()=>{const c=subCalc(m,S.sub,S.set.board),a=c.fitA,b=c.fitB;snap();m.w=Math.round(Math.abs(m.w-a)<=Math.abs(b-m.w)?a:b);rebuild();toast(`Breite ${fmt(m.w)} mm`)})}}
+  on("pTun","change",e=>{const g=group(sel);snap();const pp=S.pieces.find(q=>q.id===sel);pp.tun=e.target.checked;rebuild()});
+  on("trDel","click",()=>{snap();S.trassen=S.trassen.filter(t=>!t.pids.includes(sel));rebuild()});
+  document.querySelectorAll("[data-trn]").forEach(x=>x.onclick=()=>{const v=x.dataset.trn;snap();S.trassen.push({id:uid(),pids:rampChain(sel).map(c=>c.p.id),n:v==="1"?1:2,side:v==="2r"?-1:1});rebuild();toast("Trasse angelegt")});
+  {const ob=(S.objs||[]).find(q=>q.id===selObj);if(ob){on("oN","change",e=>{snap();ob.n=+e.target.value;ob.wIn=ob.n===2?100+TRSP:100;const q=snapTrack(ob.x,ob.y,80);if(q)placePortal(ob,q);rebuild()});
+    [["oW","wIn"],["oH","hIn"],["oWa","wall"],["oD","dep"]].forEach(([i,k])=>on(i,"change",e=>{snap();ob[k]=Math.max(1,+e.target.value);rebuild()}));
+    on("oFlip","click",()=>{snap();ob.flip=!ob.flip;rebuild()});on("oSnap","click",()=>{const q=snapTrack(ob.x,ob.y,120);if(q){snap();placePortal(ob,q);rebuild()}else toast("Kein Gleis in der Nähe")})}}
   on("conGo","click",()=>setMode("connect"));on("profBig","click",()=>sheet("Seitenansicht Rampe",profileSVG(sel,620,300)));on("rGo","click",buildRamp);
-  on("rT","change",e=>{rampCfg.target=e.target.value;$("rOut").innerHTML=rampTxt(rampPlan())});on("rF","change",e=>{rampCfg.form=e.target.value;ui()});
+  on("rT","change",e=>{rampCfg.target=e.target.value;$("rOut").innerHTML=rampTxt(rampPlan())});on("rF","change",e=>{rampCfg.form=e.target.value;ui()});on("rN","change",e=>{const v=e.target.value;rampCfg.n=v==="1"?1:2;rampCfg.side=v==="2r"?"rechts":"links"});on("rTr","change",e=>{rampCfg.trasse=e.target.checked});
   on("rR","input",e=>{rampCfg.R=+e.target.value;$("rOut").innerHTML=rampTxt(rampPlan())});on("rS","input",e=>{rampCfg.g=+e.target.value;$("rOut").innerHTML=rampTxt(rampPlan())});
   on("rH","input",e=>{rampH=+e.target.value||0;$("rCalc").textContent=`Rampenlänge ${fmt(rampH/(rampG/100))} mm ≈ ${fmt(rampH/(rampG/100)/180)} × 2200`});
   on("rG","input",e=>{rampG=+e.target.value||1;$("rCalc").textContent=`Rampenlänge ${fmt(rampH/(rampG/100))} mm ≈ ${fmt(rampH/(rampG/100)/180)} × 2200`});
@@ -767,6 +873,8 @@ $("bHelp").onclick=()=>sheet("Kurzanleitung",`<table><tbody>
   <tr><td>Mehrere gleiche</td><td>Oben in der Bibliothek − / + (z. B. 12 × 2231). Oder Gleis im Plan antippen und + / Leertaste.</td></tr>
   <tr><td>N / J</td><td>Gleisnummern bzw. Schienenstöße ein- und ausblenden.</td></tr>
   <tr><td>U</td><td>Unterbau-Modul zeichnen. Unter „Unterbau“: Kistenmaß, Einschubseite je Modul (vorne, hinten, links, rechts); Füße und Kistenplätze rechnet der Planer.</td></tr>
+  <tr><td>Portal</td><td>„Bauwerke“ in der Bibliothek: Portal wählen, dann Gleis antippen. Ziehen verschiebt, beim Loslassen rastet es am Gleis ein. Zweigleisig setzt sich mittig zwischen zwei Gleise.</td></tr>
+  <tr><td>Trasse</td><td>Abfahrt nach unten außerhalb der Module: Rampe einzeichnen (ein- oder zweigleisig) mit „Trasse“, oder Rampengleis antippen und Trasse anlegen. Konsolen an Modulbeinen in Reichweite, sonst Stützen.</td></tr>
   <tr><td>O</td><td>Raum als Polygon: Ecken antippen, ersten Punkt antippen schließt. Umschalt rastet auf 15°.</td></tr>
   <tr><td>Rampe</td><td>Offenes Ende rot markieren, unter „Auswahl“ Ziel-Ebene wählen: gerade oder als Wendel.</td></tr>
   <tr><td>Verbinden</td><td>„Mit anderem Ende verbinden“: kürzester Weg mit Mindestradius, Steigung automatisch, nötigenfalls mit Wendel.</td></tr>
