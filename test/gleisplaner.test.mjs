@@ -33,6 +33,7 @@ ok(qStil && app.includes(qStil), "App: Gestaltung unverändert übernommen");
 
 for (const merkmal of ["7286", "localStorage", "gleisplan-moraro.json", "Datei laden"]) ok(app.includes(merkmal), `App enthält „${merkmal}“`);
 ok(/Wendel/i.test(app) && /Rampe/i.test(app), "App: Rampe und Wendel");
+ok(/Unterbau/.test(app) && /lichte Höhe/.test(app) && /Kiste/.test(app), "App: Unterbau-Module mit Kisten und lichter Höhe");
 ok(!/<(script|img)[^>]+src="https?:\/\//.test(app) && !/<link(?![^>]*rel="canonical")[^>]+href="https?:\/\//.test(app), "App lädt nichts von fremden Servern");
 
 ok(seite.includes('<iframe src="/gleisplaner-app"') && seite.includes('href="/gleisplaner-app"'), "Seite: App eingebettet + Vollbild-Knopf");

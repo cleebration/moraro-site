@@ -57,7 +57,7 @@ button{font:inherit;color:inherit}
 .part b{font:500 12px/1 var(--f-mono)}
 .part span{font-size:11.5px;color:var(--muted);line-height:1.25}
 .tabs{display:flex;gap:2px;padding:10px 10px 0}
-.tab{flex:1;border:0;background:transparent;padding:8px 4px;border-radius:9px;cursor:pointer;font:600 12px/1 var(--f-display);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);position:relative}
+.tab{flex:1;border:0;background:transparent;padding:8px 1px;border-radius:9px;cursor:pointer;font:600 10.5px/1 var(--f-display);letter-spacing:.02em;min-width:0;text-transform:uppercase;color:var(--muted);position:relative}
 .tab.on{background:var(--line);color:var(--ink)}
 .tab .badge{top:-3px;right:-1px}
 .sec{padding:10px 4px;border-bottom:1px solid var(--line)}
@@ -143,6 +143,7 @@ textarea{width:100%;min-height:150px;background:var(--paper);color:var(--ink);bo
     <button class="ib on" id="mSel" title="Auswählen und verschieben (V)" aria-label="Auswählen"><svg viewBox="0 0 24 24"><path d="M5 3l14 8-6 2-3 6z"/></svg></button>
     <button class="ib" id="mBoard" title="Platte zeichnen (P)" aria-label="Platte zeichnen"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="1"/><path d="M3 10h18"/></svg></button>
     <button class="ib" id="mRoom" title="Raum als Polygon zeichnen (O)" aria-label="Raum zeichnen"><svg viewBox="0 0 24 24"><path d="M4 4h10v6h6v10H4z"/><circle cx="4" cy="4" r="1.6"/><circle cx="14" cy="10" r="1.6"/><circle cx="20" cy="20" r="1.6"/></svg></button>
+    <button class="ib" id="mMod" title="Unterbau-Modul zeichnen (U)" aria-label="Unterbau-Modul zeichnen"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="4" rx="1"/><path d="M5 9v11M19 9v11M12 9v6"/></svg></button>
     <span class="sep"></span>
     <button class="ib" id="bDup" title="Gleiches Gleis anhängen (+ oder Leertaste)" aria-label="Gleiches Gleis anhängen"><svg viewBox="0 0 24 24"><rect x="3" y="7" width="12" height="12" rx="2"/><path d="M9 3h10a2 2 0 0 1 2 2v10M9 10v6M6 13h6"/></svg></button>
     <button class="ib hideM" id="bRotL" title="Drehen −7,5° (Umschalt+R)" aria-label="Nach links drehen"><svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 3-6.2"/><path d="M4 4v4h4"/></svg></button>
@@ -177,7 +178,8 @@ textarea{width:100%;min-height:150px;background:var(--paper);color:var(--ink);bo
       <button class="tab on" data-tab="sel" role="tab">Auswahl</button>
       <button class="tab" data-tab="lev" role="tab">Ebenen</button>
       <button class="tab" data-tab="chk" role="tab">Prüfung<span class="badge" id="badgeT" hidden></span></button>
-      <button class="tab" data-tab="mat" role="tab">Material</button>
+      <button class="tab" data-tab="sub" role="tab">Unterbau</button>
+      <button class="tab" data-tab="mat" role="tab">Liste</button>
     </div>
     <div class="scroll" id="tabBody"></div>
   </aside>
@@ -262,6 +264,30 @@ function connections(pieces){const ends=[];pieces.forEach(p=>worldEnds(p).forEac
   ends.forEach(e=>{const k=key(e.x,e.y);(H.get(k)||H.set(k,[]).get(k)).push(e)});const con=new Map();
   ends.forEach(e=>{const cx=Math.round(e.x/4),cy=Math.round(e.y/4);for(let dx=-1;dx<=1;dx++)for(let dy=-1;dy<=1;dy++){const L=H.get((cx+dx)+","+(cy+dy));if(!L)continue;for(const o of L){if(o.pid===e.pid)continue;if(Math.hypot(o.x-e.x,o.y-e.y)<1.2&&hdiff(o.h,e.h+180)<2&&Math.abs(o.z-e.z)<30){con.set(e.pid+":"+e.i,o)}}}});
   return{ends,con}}
+// Unterbau: Modul (x,y,w,d,ins) + Einstellungen -> Füße, Kistenplätze, Höhen
+const SUBDEF={boxW:400,boxD:600,boxH:300,gap:20,side:15,top:30,legW:70,frameH:90,frameT:18,maxSpan:1000,maxMod:1250,height:0,example:true};
+function subHeight(sub,board){return sub.height>0?sub.height:sub.boxH+sub.top+sub.frameH+board}
+function subCalc(m,sub,board){const H=subHeight(sub,board),clear=H-board-sub.frameH,need=sub.boxH+sub.top,legLen=H-board,L=sub.legW;
+  const along=m.ins==="links"||m.ins==="rechts"?"x":"y";// Einschubrichtung
+  const face=along==="y"?m.w:m.d,deep=along==="y"?m.d:m.w;const legs=[],slots=[],out0={};let xs=[],perBay=0,bays=[],rest=0,lanes=0,rows=0,pitch=0;
+  if(along==="y"){// vorne/hinten: Füße der Vorder- und Hinterreihe bilden Fächer für Kisten
+    for(let n=8;n>=1;n--){const bay=n*sub.boxW+(n-1)*sub.gap+2*sub.side;if(bay+L<=sub.maxSpan+L||n===1){perBay=n;break}}
+    const bay=perBay*sub.boxW+(perBay-1)*sub.gap+2*sub.side;pitch=bay+L;const k=Math.max(0,Math.floor((face-L)/pitch));
+    xs=[];for(let i=0;i<=k;i++)xs.push(i*pitch);rest=face-L-k*pitch;
+    if(rest>0.5){if(k>=1&&rest-L<sub.boxW+2*sub.side)xs[k]=face-L;else xs.push(face-L)}
+    rows=Math.max(0,Math.floor((deep+sub.gap)/(sub.boxD+sub.gap)));
+    for(let i=0;i<xs.length-1;i++){const bw=xs[i+1]-xs[i]-L;bays.push(bw);const n=Math.max(0,Math.floor((bw-2*sub.side+sub.gap)/(sub.boxW+sub.gap)));for(let j=0;j<n;j++)for(let r=0;r<rows;r++)slots.push({u:xs[i]+L+sub.side+j*(sub.boxW+sub.gap),v:r*(sub.boxD+sub.gap),a:sub.boxW,b:sub.boxD})}
+    out0.k=k;out0.fitA=Math.max(1,k)*pitch+L;out0.fitB=(k+1)*pitch+L;
+  }else{// links/rechts: Kisten fahren in Bahnen zwischen Vorder- und Hinterreihe durch
+    const n=Math.max(1,Math.ceil((deep-L)/sub.maxSpan));pitch=(deep-L)/n;for(let i=0;i<=n;i++)xs.push(i*pitch);
+    lanes=Math.max(0,Math.floor((face-2*L-2*sub.side+sub.gap)/(sub.boxW+sub.gap)));rows=Math.max(0,Math.floor((deep+sub.gap)/(sub.boxD+sub.gap)));
+    bays=[face-2*L];for(let j=0;j<lanes;j++)for(let r=0;r<rows;r++)slots.push({u:r*(sub.boxD+sub.gap),v:L+sub.side+j*(sub.boxW+sub.gap),a:sub.boxD,b:sub.boxW})}
+  // in Modulkoordinaten: u entlang x (bzw. Fußreihe), v quer
+  const W=m.w,D=m.d,toXY=(u,v,a,b)=>{let x,y,w,h;if(along==="y"){x=u;w=a;h=b;y=m.ins==="vorne"?v:D-v-b}else{y=v;w=a;h=b;x=m.ins==="links"?u:W-u-a}return{x:m.x+x,y:m.y+y,w,h}};
+  const used=bays.reduce((a,bw)=>{const n=Math.max(0,Math.floor((bw-2*sub.side+sub.gap)/(sub.boxW+sub.gap)));return a+(n?bw-(n*sub.boxW+(n-1)*sub.gap+2*sub.side):bw)},0);
+  const out=Object.assign(out0,{H,clear,need,legLen,along,perBay,pitch,rest,rows,lanes,bays,face,deep,xs,waste:along==="y"?used:0,legs:[],slots:slots.map(q=>toXY(q.u,q.v,q.a,q.b))});
+  xs.forEach(x=>{out.legs.push({x:m.x+x,y:m.y,w:L,h:L});out.legs.push({x:m.x+x,y:m.y+D-L,w:L,h:L})});
+  return out}
 /*ENDCORE*/
 
 // ---------- Zustand ----------
@@ -270,7 +296,7 @@ const KEY="moraro-gleisplaner-v1";
 let S,undo=[],redo=[],cache=null,problems=[],conn=null;
 let sel=null,selBoard=null,activeEnd=null,last=null,mode="sel",tab="sel",view={x:2000,y:1000,k:.25};
 const uid=()=>Math.random().toString(36).slice(2,9);
-function blank(){return{v:2,demo:false,room:[],levels:[{id:uid(),name:"Ebene 0",h:0,color:COLORS[0],minR:0,maxGrad:2.5,vis:true}],active:null,pieces:[],boards:[],set:{frameW:4000,frameH:2000,board:12,clear:59}}}
+function blank(){return{v:3,demo:false,room:[],modules:[],sub:{...SUBDEF},levels:[{id:uid(),name:"Ebene 0",h:0,color:COLORS[0],minR:0,maxGrad:2.5,vis:true}],active:null,pieces:[],boards:[],set:{frameW:4000,frameH:2000,board:12,clear:59}}}
 function lev(id){return S.levels.find(l=>l.id===id)||S.levels[0]}
 function snap(){undo.push(JSON.stringify(S));if(undo.length>120)undo.shift();redo=[]}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
@@ -288,9 +314,10 @@ function demo(){S=blank();S.demo=true;const L0=S.levels[0];L0.name="Ebene 0 · S
   S.room=[{x:-300,y:-300},{x:4400,y:-300},{x:4400,y:2400},{x:1600,y:2400},{x:1600,y:3000},{x:-300,y:3000}];
   sel=null;activeEnd=null}
 function load(){try{const t=localStorage.getItem(KEY);if(t){S=JSON.parse(t);return}}catch(e){}demo()}
+function fixState(){S.modules=S.modules||[];S.sub=Object.assign({...SUBDEF},S.sub||{});S.room=S.room||[]}
 
 // ---------- Prüfung ----------
-function rebuild(){if(typeof syncView==="function"&&document.getElementById("bNr"))syncView();
+function rebuild(){fixState();if(typeof syncView==="function"&&document.getElementById("bNr"))syncView();
   cache=new Map();S.pieces.forEach(p=>{const w=worldPaths(p),ends=worldEnds(p);let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;w.paths.flat().forEach(q=>{x0=Math.min(x0,q.x);y0=Math.min(y0,q.y);x1=Math.max(x1,q.x);y1=Math.max(y1,q.y)});cache.set(p.id,{w,ends,bb:[x0,y0,x1,y1]})});
   conn=connections(S.pieces);problems=check();save();render();ui()}
 function check(){const out=[],st=S.set,by=new Map(S.pieces.map(p=>[p.id,p]));
@@ -320,6 +347,12 @@ function check(){const out=[],st=S.set,by=new Map(S.pieces.map(p=>[p.id,p]));
     if(outP.size)out.push({sev:"err",pid:[...outP.keys()][0],x:[...outP.values()][0].x,y:[...outP.values()][0].y,pts:[...outP.values()].slice(0,40),t:`${outP.size} Gleise außerhalb des Raums`,d:"Gleismitte liegt außerhalb des Raum-Polygons."});
     const ob=S.boards.filter(b=>[[b.x,b.y],[b.x+b.w,b.y],[b.x,b.y+b.h],[b.x+b.w,b.y+b.h]].some(([x,y])=>!pip({x,y},S.room)));
     if(ob.length)out.push({sev:"warn",x:ob[0].x,y:ob[0].y,t:`${ob.length} Platte${ob.length>1?"n":""} ragt aus dem Raum`,d:ob.map(b=>`${fmt(b.w)} × ${fmt(b.h)} mm (${lev(b.level).name})`).join(" · ")})}
+  // Unterbau
+  (S.modules||[]).forEach(m=>{const c=subCalc(m,S.sub,st.board),nm=m.name||"Modul";
+    if(c.clear<c.need)out.push({sev:"err",x:m.x+m.w/2,y:m.y+m.d/2,t:`${nm}: Kiste passt nicht darunter`,d:`Lichte Höhe ${fmt(c.clear)} mm, nötig ${fmt(c.need)} mm (Kiste ${fmt(S.sub.boxH)} + Luft ${fmt(S.sub.top)})`});
+    if(!c.slots.length)out.push({sev:"warn",x:m.x+m.w/2,y:m.y+m.d/2,t:`${nm}: kein Kistenplatz`,d:"Modul zu klein für die Kiste oder Einschubseite ändern."});
+    if(c.along==="y"&&c.waste>40)out.push({sev:"info",x:m.x+m.w/2,y:m.y+m.d/2,t:`${nm}: ${fmt(c.waste)} mm ungenutzt`,d:`Kistenraster passt genau bei ${fmt(c.fitA)} oder ${fmt(c.fitB)} mm Breite.`});
+    if(c.pitch-S.sub.legW>S.sub.maxSpan)out.push({sev:"warn",x:m.x,y:m.y,t:`${nm}: Fußabstand ${fmt(c.pitch-S.sub.legW)} mm`,d:`größer als die eingestellte Spannweite ${fmt(S.sub.maxSpan)} mm`})});
   // offene Enden
   let open=0;S.pieces.forEach(p=>{if(geom(p).tt)return;cache.get(p.id).ends.forEach(e=>{if(!conn.con.has(p.id+":"+e.i))open++})});
   if(open)out.push({sev:"info",t:`${open} offene Gleisenden`,d:"Messing-Punkte im Plan. Mit Prellbock gewollt? Sonst anschließen."});
@@ -339,6 +372,7 @@ function render(){if(!cache)return;if(S.pieces.some(p=>!cache.has(p.id)))cacheOn
   for(let y=Math.floor(wy(H)/step)*step;y<=wy(0);y+=step){ctx.strokeStyle=y%1000===0?P.gs:P.grid;ctx.beginPath();ctx.moveTo(0,sy(y)+.5);ctx.lineTo(W,sy(y)+.5);ctx.stroke()}
   // Raum
   const room=S.room||[];if(room.length>=3)drawRoom(room,true,P);
+  drawModules(P);
   // Anlagenrahmen
   if(S.set.frameW>0&&S.set.frameH>0){ctx.setLineDash([8,6]);ctx.strokeStyle=P.brass;ctx.lineWidth=1.5;ctx.strokeRect(sx(0),sy(S.set.frameH),S.set.frameW*view.k,S.set.frameH*view.k);ctx.setLineDash([]);
   ctx.fillStyle=P.brass;ctx.font="500 11px 'IBM Plex Mono',monospace";ctx.fillText(`Anlage ${S.set.frameW/10} × ${S.set.frameH/10} cm`,sx(0)+4,sy(S.set.frameH)-6)}
@@ -369,13 +403,24 @@ function render(){if(!cache)return;if(S.pieces.some(p=>!cache.has(p.id)))cacheOn
   problems.forEach(pr=>{if(pr.x==null)return;ctx.strokeStyle=P.signal;ctx.lineWidth=2;(pr.pts||[pr]).forEach(q=>{ctx.beginPath();ctx.arc(sx(q.x),sy(q.y),11,0,7);ctx.stroke()})});
   if(mode==="room"&&roomDraft.length){const pts=[...roomDraft];if(mouse)pts.push(roomPt(mouse.X,mouse.Y,true));drawRoom(pts,false,P)}
   if(mode==="connect"&&activeEnd&&mouse){const a=cache.get(activeEnd.pid);if(a){const e=a.ends[activeEnd.i];ctx.setLineDash([6,5]);ctx.strokeStyle=P.signal;ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(sx(e.x),sy(e.y));ctx.lineTo(mouse.X,mouse.Y);ctx.stroke();ctx.setLineDash([])}}
-  if(drag&&drag.type==="board"){ctx.strokeStyle=P.signal;ctx.setLineDash([5,4]);ctx.strokeRect(Math.min(drag.X0,drag.X1),Math.min(drag.Y0,drag.Y1),Math.abs(drag.X1-drag.X0),Math.abs(drag.Y1-drag.Y0));ctx.setLineDash([])}
+  if(drag&&(drag.type==="board"||drag.type==="mod")){ctx.strokeStyle=P.signal;ctx.setLineDash([5,4]);ctx.strokeRect(Math.min(drag.X0,drag.X1),Math.min(drag.Y0,drag.Y1),Math.abs(drag.X1-drag.X0),Math.abs(drag.Y1-drag.Y0));ctx.setLineDash([])}
   status();dirChip()}
 function dirChip(){const el=$("dirChip");if(!el)return;if(!activeEnd||activeEnd.i===0||mode!=="sel"||(drag&&drag.type!=="none")){el.hidden=true;return}
   const p=S.pieces.find(q=>q.id===activeEnd.pid);if(!p||!cache.get(p.id)){el.hidden=true;return}const g=geom(p),a=ART[p.art];const curved=!g.tt&&(isFinite(g.radius)&&!g.cross)||a.pair;if(!curved){el.hidden=true;return}
   const e=cache.get(p.id).ends[activeEnd.i],X=sx(e.x),Y=sy(e.y);if(X<0||Y<0||X>W||Y>H){el.hidden=true;return}
   const left=a.pair?/links/.test(a.name):(a.flex?!p.flip:!p.flip);$("dirTxt").textContent=a.pair?(left?"→ Weiche rechts":"→ Weiche links"):(left?"Bogen nach rechts":"Bogen nach links");
   el.style.left=Math.min(W-90,Math.max(90,X))+"px";el.style.top=Math.max(110,Y)+"px";el.hidden=false}
+function drawModules(P){const ms=S.modules||[];if(!ms.length)return;const strong=tab==="sub"||mode==="module";
+  ms.forEach(m=>{const c=subCalc(m,S.sub,S.set.board),isS=m.id===selMod;ctx.globalAlpha=strong?1:.45;
+    c.slots.forEach(b=>{ctx.fillStyle=P.ball+"33";ctx.strokeStyle=P.ball;ctx.lineWidth=1;ctx.fillRect(sx(b.x),sy(b.y+b.h),b.w*view.k,b.h*view.k);ctx.strokeRect(sx(b.x),sy(b.y+b.h),b.w*view.k,b.h*view.k)});
+    ctx.setLineDash([10,5]);ctx.strokeStyle=isS?P.signal:P.ink;ctx.lineWidth=isS?2.5:1.5;ctx.strokeRect(sx(m.x),sy(m.y+m.d),m.w*view.k,m.d*view.k);ctx.setLineDash([]);
+    c.legs.forEach(l=>{ctx.fillStyle=P.ink;ctx.fillRect(sx(l.x),sy(l.y+l.h),Math.max(3,l.w*view.k),Math.max(3,l.h*view.k))});
+    // Einschubpfeil
+    const cx=m.x+m.w/2,cy=m.y+m.d/2,dir={vorne:[0,-1],hinten:[0,1],links:[-1,0],rechts:[1,0]}[m.ins]||[0,-1],ex=cx+dir[0]*(m.w/2),ey=cy+dir[1]*(m.d/2);
+    const X1=sx(ex),Y1=sy(ey),X0=X1-dir[0]*40,Y0=Y1+dir[1]*40;ctx.strokeStyle=P.brass;ctx.lineWidth=2.5;ctx.beginPath();ctx.moveTo(X1+dir[0]*14,Y1-dir[1]*14);ctx.lineTo(X0,Y0);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(X0,Y0);ctx.lineTo(X0+dir[0]*10+dir[1]*7,Y0-dir[1]*10+dir[0]*7);ctx.lineTo(X0+dir[0]*10-dir[1]*7,Y0-dir[1]*10-dir[0]*7);ctx.closePath();ctx.fillStyle=P.brass;ctx.fill();
+    {ctx.font="600 11px 'IBM Plex Mono',monospace";const room=m.w*view.k-12;const opts=[`${m.name||"Modul"} · ${fmt(m.w)} × ${fmt(m.d)} · ${c.slots.length} Kisten`,`${m.name||"Modul"} · ${c.slots.length} Kisten`,`${m.name||"Modul"}`];const t=opts.find(o=>ctx.measureText(o).width<=room);if(t){const w=ctx.measureText(t).width;ctx.fillStyle=P.paper;ctx.fillRect(sx(m.x)+4,sy(m.y+m.d)+5,w+4,14);ctx.fillStyle=P.ink;ctx.fillText(t,sx(m.x)+6,sy(m.y+m.d)+16)}}
+    ctx.globalAlpha=1})}
 function drawRoom(pts,closed,P){ctx.beginPath();pts.forEach((q,i)=>i?ctx.lineTo(sx(q.x),sy(q.y)):ctx.moveTo(sx(q.x),sy(q.y)));if(closed){ctx.closePath();ctx.globalAlpha=.06;ctx.fillStyle=P.brass;ctx.fill();ctx.globalAlpha=1}
   ctx.strokeStyle=P.ink;ctx.lineWidth=closed?3:2;ctx.setLineDash(closed?[]:[6,4]);ctx.stroke();ctx.setLineDash([]);
   ctx.font="500 11px 'IBM Plex Mono',monospace";ctx.fillStyle=P.ink;const n=pts.length;for(let i=0;i<(closed?n:n-1);i++){const a=pts[i],b=pts[(i+1)%n],L=Math.hypot(b.x-a.x,b.y-a.y);if(L*view.k<40)continue;const mx=(sx(a.x)+sx(b.x))/2,my=(sy(a.y)+sy(b.y))/2;const t=`${fmt(L/10)} cm`;const w=ctx.measureText(t).width;ctx.fillStyle=P.paper;ctx.fillRect(mx-w/2-3,my-8,w+6,15);ctx.fillStyle=P.ink;ctx.fillText(t,mx-w/2,my+3)}
@@ -449,7 +494,7 @@ function flipSel(){const p=S.pieces.find(q=>q.id===sel);if(!p)return;snap();cons
 function group(pid){const g=new Set([pid]),st=[pid];while(st.length){const id=st.pop();conn.con.forEach((o,k)=>{const a=k.split(":")[0];if(a===id&&!g.has(o.pid)){g.add(o.pid);st.push(o.pid)}})}return g}
 function rotateSel(deg){const p=S.pieces.find(q=>q.id===sel);if(!p)return;snap();const g=group(p.id),c=cache.get(p.id).w.paths[0][0];
   S.pieces.forEach(q=>{if(!g.has(q.id))return;const dx=q.x-c.x,dy=q.y-c.y,cs=Math.cos(deg*D2R),sn=Math.sin(deg*D2R);q.x=c.x+dx*cs-dy*sn;q.y=c.y+dx*sn+dy*cs;q.rot=norm(q.rot+deg)});rebuild()}
-function delSel(){if(!sel&&!selBoard&&roomSel!=null&&S.room&&S.room.length>3){snap();S.room.splice(roomSel,1);roomSel=null;rebuild();return}if(sel){snap();S.pieces=S.pieces.filter(p=>p.id!==sel);if(activeEnd&&activeEnd.pid===sel)activeEnd=null;sel=null;rebuild()}else if(selBoard){snap();S.boards=S.boards.filter(b=>b.id!==selBoard);selBoard=null;rebuild()}}
+function delSel(){if(selMod&&tab==="sub"&&!sel){snap();S.modules=S.modules.filter(m=>m.id!==selMod);selMod=null;rebuild();return}if(!sel&&!selBoard&&roomSel!=null&&S.room&&S.room.length>3){snap();S.room.splice(roomSel,1);roomSel=null;rebuild();return}if(sel){snap();S.pieces=S.pieces.filter(p=>p.id!==sel);if(activeEnd&&activeEnd.pid===sel)activeEnd=null;sel=null;rebuild()}else if(selBoard){snap();S.boards=S.boards.filter(b=>b.id!==selBoard);selBoard=null;rebuild()}}
 function doUndo(){if(!undo.length)return;redo.push(JSON.stringify(S));S=JSON.parse(undo.pop());sel=null;activeEnd=null;rebuild()}
 function doRedo(){if(!redo.length)return;undo.push(JSON.stringify(S));S=JSON.parse(redo.pop());sel=null;activeEnd=null;rebuild()}
 function fit(){let x0=0,y0=0,x1=S.set.frameW,y1=S.set.frameH;(S.room||[]).forEach(q=>{x0=Math.min(x0,q.x);y0=Math.min(y0,q.y);x1=Math.max(x1,q.x);y1=Math.max(y1,q.y)});cache.forEach(c=>{x0=Math.min(x0,c.bb[0]);y0=Math.min(y0,c.bb[1]);x1=Math.max(x1,c.bb[2]);y1=Math.max(y1,c.bb[3])});
@@ -461,18 +506,21 @@ let drag=null,mouse=null;const ptrs=new Map();
 function hitEnd(X,Y){let best=null,bd=14;S.pieces.forEach(p=>{if(!lev(p.level).vis)return;cache.get(p.id).ends.forEach(e=>{if(conn.con.has(p.id+":"+e.i))return;const d=Math.hypot(sx(e.x)-X,sy(e.y)-Y);if(d<bd){bd=d;best={pid:p.id,i:e.i}}})});return best}
 function hitPiece(X,Y){const x=wx(X),y=wy(Y),tol=Math.max(16,12/view.k);let best=null,bd=tol;const vis=new Set(S.levels.filter(l=>l.vis).map(l=>l.id));
   S.pieces.forEach(p=>{if(!vis.has(p.level))return;const c=cache.get(p.id);if(x<c.bb[0]-tol-200||x>c.bb[2]+tol+200||y<c.bb[1]-tol-200||y>c.bb[3]+tol+200)return;(c.w.pit?[...c.w.paths,c.w.pit]:c.w.paths).forEach(pts=>pts.forEach(q=>{const d=Math.hypot(q.x-x,q.y-y)-(p.level===S.active?2:0);if(d<bd){bd=d;best=p.id}}))});return best}
+function hitModule(X,Y){const x=wx(X),y=wy(Y);const m=(S.modules||[]).find(m=>x>=m.x&&x<=m.x+m.w&&y>=m.y&&y<=m.y+m.d);return m?m.id:null}
 function hitBoard(X,Y){const x=wx(X),y=wy(Y);const bs=S.boards.filter(b=>lev(b.level).vis&&x>=b.x&&x<=b.x+b.w&&y>=b.y&&y<=b.y+b.h);bs.sort((a,b)=>(a.level===S.active?-1:0)-(b.level===S.active?-1:0));return bs[0]?bs[0].id:null}
 cv.addEventListener("pointerdown",ev=>{cv.setPointerCapture(ev.pointerId);ptrs.set(ev.pointerId,{X:ev.offsetX,Y:ev.offsetY});
   if(ptrs.size===2){const [a,b]=[...ptrs.values()];drag={type:"pinch",d:Math.hypot(a.X-b.X,a.Y-b.Y),k:view.k,cx:(a.X+b.X)/2,cy:(a.Y+b.Y)/2,vx:view.x,vy:view.y};return}
   const X=ev.offsetX,Y=ev.offsetY;
   ptrShift=ev.shiftKey;
   if(mode==="board"){drag={type:"board",X0:X,Y0:Y,X1:X,Y1:Y};return}
+  if(mode==="module"){drag={type:"mod",X0:X,Y0:Y,X1:X,Y1:Y};return}
   if(mode==="room"){const f=roomDraft[0];if(f&&roomDraft.length>=3&&Math.hypot(sx(f.x)-X,sy(f.y)-Y)<14){closeRoom();return}roomDraft.push(roomPt(X,Y));render();drag={type:"none"};return}
   if(mode==="connect"){const he=hitEnd(X,Y);drag={type:"none"};if(he&&activeEnd&&!(he.pid===activeEnd.pid&&he.i===activeEnd.i)){const a=cache.get(activeEnd.pid).ends[activeEnd.i],b=cache.get(he.pid).ends[he.i];setMode("sel");connSheet(a,b)}else toast("Ziel: ein offenes Gleisende antippen");return}
   if(S.room&&S.room.length){const vi=S.room.findIndex(q=>Math.hypot(sx(q.x)-X,sy(q.y)-Y)<9);if(vi>=0&&tab==="lev"){roomSel=vi;drag={type:"rv",i:vi,moved:false};return}}
   const he=hitEnd(X,Y);if(he){drag={type:"none"};if(activeEnd&&he.pid===activeEnd.pid&&he.i===activeEnd.i){const src=S.pieces.find(q=>q.id===he.pid);const lp=last&&S.pieces.find(q=>q.id===last.pid);const s2=src&&!geom(src).tt?src:lp&&!geom(lp).tt?lp:null;if(s2)placeLike(s2);else toast("Gleis aus der Bibliothek wählen");return}
     activeEnd=he;sel=he.pid;selBoard=null;render();ui();return}
   const hp=hitPiece(X,Y);if(hp){sel=hp;selBoard=null;roomSel=null;{const fe=freeEnds(S.pieces.find(p=>p.id===hp));const pick=fe.find(e=>e.i!==0)||fe[0];if(pick&&!geom(S.pieces.find(p=>p.id===hp)).tt)activeEnd={pid:hp,i:pick.i}}const g=group(hp);drag={type:"move",X,Y,g,orig:S.pieces.filter(p=>g.has(p.id)).map(p=>({id:p.id,x:p.x,y:p.y})),moved:false};render();ui();return}
+  const hm=hitModule(X,Y);if(hm&&tab==="sub"){selMod=hm;sel=null;selBoard=null;const m=S.modules.find(q=>q.id===hm);drag={type:"mmove",X,Y,m,ox:m.x,oy:m.y,moved:false};render();ui();return}
   const hb=hitBoard(X,Y);if(hb&&ev.detail>=1&&ev.altKey!==true){selBoard=hb;sel=null;const b=S.boards.find(b=>b.id===hb);drag={type:"bmove",X,Y,b,ox:b.x,oy:b.y,moved:false};render();ui();return}
   sel=null;selBoard=null;drag={type:"pan",X,Y,vx:view.x,vy:view.y,moved:false};cv.classList.add("pan");ui()});
 cv.addEventListener("pointermove",ev=>{mouse={X:ev.offsetX,Y:ev.offsetY};ptrShift=ev.shiftKey;if(mode==="room"||mode==="connect")render();if(ptrs.has(ev.pointerId))ptrs.set(ev.pointerId,{X:ev.offsetX,Y:ev.offsetY});
@@ -483,6 +531,8 @@ cv.addEventListener("pointermove",ev=>{mouse={X:ev.offsetX,Y:ev.offsetY};ptrShif
     drag.orig.forEach(o=>{const p=S.pieces.find(q=>q.id===o.id);p.x=o.x+dx;p.y=o.y+dy});cache=null;cacheOnly();render()}
   else if(drag.type==="bmove"){if(!drag.moved&&Math.hypot(X-drag.X,Y-drag.Y)<4)return;if(!drag.moved){snap();drag.moved=true}drag.b.x=Math.round(drag.ox+(X-drag.X)/view.k);drag.b.y=Math.round(drag.oy-(Y-drag.Y)/view.k);render()}
   else if(drag.type==="board"){drag.X1=X;drag.Y1=Y;render()}
+  else if(drag.type==="mod"){drag.X1=X;drag.Y1=Y;render()}
+  else if(drag.type==="mmove"){if(!drag.moved&&Math.hypot(X-drag.X,Y-drag.Y)<4)return;if(!drag.moved){snap();drag.moved=true}drag.m.x=Math.round((drag.ox+(X-drag.X)/view.k)/10)*10;drag.m.y=Math.round((drag.oy-(Y-drag.Y)/view.k)/10)*10;render()}
   else if(drag.type==="rv"){if(!drag.moved){snap();drag.moved=true}S.room[drag.i]={x:Math.round(wx(X)/10)*10,y:Math.round(wy(Y)/10)*10};render()}});
 function cacheOnly(){cache=new Map();S.pieces.forEach(p=>{const w=worldPaths(p),ends=worldEnds(p);let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;w.paths.flat().forEach(q=>{x0=Math.min(x0,q.x);y0=Math.min(y0,q.y);x1=Math.max(x1,q.x);y1=Math.max(y1,q.y)});cache.set(p.id,{w,ends,bb:[x0,y0,x1,y1]})});conn=connections(S.pieces)}
 function trySnap(g){let best=null;const tol=Math.max(15,14/view.k);
@@ -493,6 +543,9 @@ cv.addEventListener("pointerup",ev=>{ptrs.delete(ev.pointerId);cv.classList.remo
   if(drag.type==="move"&&drag.moved){cacheOnly();if(trySnap(drag.g))toast("Angeschlossen");rebuild()}
   else if(drag.type==="bmove"&&drag.moved){rebuild()}
   else if(drag.type==="rv"){if(drag.moved)rebuild();else ui()}
+  else if(drag.type==="mmove"){if(drag.moved)rebuild()}
+  else if(drag.type==="mod"){const x0=wx(Math.min(drag.X0,drag.X1)),x1=wx(Math.max(drag.X0,drag.X1)),y1=wy(Math.min(drag.Y0,drag.Y1)),y0=wy(Math.max(drag.Y0,drag.Y1));
+    if(x1-x0>150&&y1-y0>150){snap();const r=v=>Math.round(v/10)*10,m={id:uid(),name:"Modul "+((S.modules||[]).length+1),x:r(x0),y:r(y0),w:r(x1-x0),d:r(y1-y0),ins:"vorne"};S.modules.push(m);selMod=m.id;sel=null;selBoard=null;tab="sub";setMode("sel");rebuild()}else render()}
   else if(drag.type==="pan"&&!drag.moved){activeEnd=null;render()}
   else if(drag.type==="board"){const x0=wx(Math.min(drag.X0,drag.X1)),x1=wx(Math.max(drag.X0,drag.X1)),y1=wy(Math.min(drag.Y0,drag.Y1)),y0=wy(Math.max(drag.Y0,drag.Y1));
     if(x1-x0>30&&y1-y0>30){snap();const b={id:uid(),level:S.active,x:Math.round(x0/5)*5,y:Math.round(y0/5)*5,w:Math.round((x1-x0)/5)*5,h:Math.round((y1-y0)/5)*5};S.boards.push(b);selBoard=b.id;sel=null;tab="sel";rebuild()}else render()}
@@ -502,11 +555,11 @@ cv.addEventListener("pointercancel",ev=>{ptrs.delete(ev.pointerId);drag=null});
 cv.addEventListener("wheel",ev=>{ev.preventDefault();const f=Math.exp(-ev.deltaY*.0015),x=wx(ev.offsetX),y=wy(ev.offsetY);view.k=Math.min(4,Math.max(.03,view.k*f));view.x=x-(ev.offsetX-W/2)/view.k;view.y=y+(ev.offsetY-H/2)/view.k;render()},{passive:false});
 document.addEventListener("keydown",ev=>{if(/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName))return;const k=ev.key.toLowerCase();
   if((ev.ctrlKey||ev.metaKey)&&k==="z"){ev.preventDefault();ev.shiftKey?doRedo():doUndo();return}
-  if(k==="delete"||k==="backspace"){delSel();ev.preventDefault()}else if(k==="r")rotateSel(ev.shiftKey?7.5:-7.5);else if(k==="f")flipActive();else if(k==="c")cycleEnd();else if(k==="+"||k===" "){ev.preventDefault();addSame()}else if(k==="enter"&&mode==="room")closeRoom();else if(k==="escape"){if(mode==="room"&&roomDraft.length){roomDraft=[];render();return}sel=null;selBoard=null;activeEnd=null;setMode("sel");render();ui()}else if(k==="v")setMode("sel");else if(k==="p")setMode("board");else if(k==="o")setMode("room");else if(k==="n")toggleView("showNr");else if(k==="j")toggleView("showJoints")});
+  if(k==="delete"||k==="backspace"){delSel();ev.preventDefault()}else if(k==="r")rotateSel(ev.shiftKey?7.5:-7.5);else if(k==="f")flipActive();else if(k==="c")cycleEnd();else if(k==="+"||k===" "){ev.preventDefault();addSame()}else if(k==="enter"&&mode==="room")closeRoom();else if(k==="escape"){if(mode==="room"&&roomDraft.length){roomDraft=[];render();return}sel=null;selBoard=null;activeEnd=null;setMode("sel");render();ui()}else if(k==="v")setMode("sel");else if(k==="p")setMode("board");else if(k==="o")setMode("room");else if(k==="u")setMode("module");else if(k==="n")toggleView("showNr");else if(k==="j")toggleView("showJoints")});
 
 // ---------- Oberfläche ----------
 const $=id=>document.getElementById(id);
-function setMode(m){if(mode==="room"&&m!=="room")roomDraft=[];mode=m;$("mSel").classList.toggle("on",m==="sel");$("mBoard").classList.toggle("on",m==="board");$("mRoom").classList.toggle("on",m==="room");cv.classList.toggle("board",m==="board"||m==="room"||m==="connect");
+function setMode(m){if(mode==="room"&&m!=="room")roomDraft=[];mode=m;$("mSel").classList.toggle("on",m==="sel");$("mBoard").classList.toggle("on",m==="board");$("mRoom").classList.toggle("on",m==="room");$("mMod").classList.toggle("on",m==="module");cv.classList.toggle("board",m==="board"||m==="room"||m==="connect"||m==="module");if(m==="module"){tab="sub";ui();toast("Rechteck aufziehen: Unterbau-Modul")}
   if(m==="board")toast("Rechteck aufziehen: Platte für "+lev(S.active).name);if(m==="room")toast("Raumecken antippen · Umschalt = 15°-Raster · ersten Punkt oder Doppeltipp schließt");if(m==="connect")toast("Ziel: ein offenes Gleisende antippen");render()}
 function partIcon(art){const c=document.createElement("canvas");c.width=200;c.height=68;const x=c.getContext("2d"),p={id:"i",art,x:0,y:0,rot:0,flip:false,z:0,grad:0,flex:{r:600,len:500}},w=worldPaths(p);
   let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;[...w.paths.flat(),...(w.pit||[])].forEach(q=>{x0=Math.min(x0,q.x);y0=Math.min(y0,q.y);x1=Math.max(x1,q.x);y1=Math.max(y1,q.y)});
@@ -515,10 +568,10 @@ function partIcon(art){const c=document.createElement("canvas");c.width=200;c.he
   return c}
 function buildLib(){const box=$("libList");box.innerHTML="";CATS.forEach(c=>{const h=document.createElement("div");h.className="cat";h.textContent=c.n;box.appendChild(h);const g=document.createElement("div");g.className="parts";
   c.items.forEach(a=>{const b=document.createElement("button");b.className="part";b.title=ART[a].name;b.appendChild(partIcon(a));b.insertAdjacentHTML("beforeend",`<b>${a}</b><span>${esc(ART[a].name.split(" · ")[0])}</span>`);b.onclick=()=>{placeMany(a);if(W<861)$("lib").classList.add("closed")};g.appendChild(b)});box.appendChild(g)})}
-function ui(){$("bDel").disabled=!sel&&!selBoard&&roomSel==null;["bRotL","bRotR","bFlip"].forEach(i=>$(i).disabled=!sel);$("bUndo").disabled=!undo.length;$("bRedo").disabled=!redo.length;
+function ui(){$("bDel").disabled=!sel&&!selBoard&&roomSel==null&&!(selMod&&tab==="sub");["bRotL","bRotR","bFlip"].forEach(i=>$(i).disabled=!sel);$("bUndo").disabled=!undo.length;$("bRedo").disabled=!redo.length;
   const ne=problems.filter(p=>p.sev==="err").length;["badgeT","badgeM"].forEach(i=>{$(i).hidden=!ne;$(i).textContent=ne});
   document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("on",t.dataset.tab===tab));
-  const B=$("tabBody");B.innerHTML=tab==="sel"?tabSel():tab==="lev"?tabLev():tab==="chk"?tabChk():tabMat();bindTab()}
+  const B=$("tabBody");B.innerHTML=tab==="sel"?tabSel():tab==="lev"?tabLev():tab==="chk"?tabChk():tab==="sub"?tabSub():tabMat();bindTab()}
 function num(id,v,step=1,extra=""){return`<input type="number" id="${id}" value="${Math.round(v*100)/100}" step="${step}" ${extra}>`}
 function tabSel(){const p=S.pieces.find(q=>q.id===sel),b=S.boards.find(q=>q.id===selBoard);let h="";
   if(S.demo)h+=`<div class="sec"><div class="row"><span class="demo">Beispiel</span></div><p class="muted">Ein Beispielplan mit drei Ebenen ist geladen. Er zeigt die Prüfungen: Ebene 1 liegt 60 mm über Ebene 0, abzüglich 12 mm Platte bleiben 48 mm lichte Höhe.</p><button class="btn" id="newPlan">Leeren Plan beginnen</button></div>`;
@@ -587,16 +640,60 @@ function tabLev(){const st=S.set;let h=`<div class="sec"><div class="row" style=
     <div class="row"><label>Lichte Höhe min.</label>${num("sC",st.clear,1)}<span class="muted">mm</span><button class="ibtn" data-info="cInfo">i</button></div>
     <div class="info" id="cInfo">NEM 102 für H0: 59 mm über Schienenoberkante (H4), mit Fahrleitung 65 mm (H5). Gemessen wird Höhe der oberen Schienenoberkante minus Plattenstärke minus untere Schienenoberkante.</div></div>`;
   return h}
-let lvOpen=null,roomSel=null;
+let lvOpen=null,roomSel=null,selMod=null;
 function tabChk(){if(!problems.length)return`<div class="sec"><div class="okbox"><span class="dot" style="background:var(--ok)"></span><div><b>Alles in Ordnung</b><div class="muted">Radien, Steigungen, lichte Höhen und Stöße passen.</div></div></div></div>`;
   const ne=problems.filter(p=>p.sev==="err").length;let h=`<div class="sec"><p class="muted">${ne} Fehler${problems.length>ne?` · ${problems.length-ne} Hinweis`:""}. Antippen zeigt die Stelle.</p>`;
   problems.forEach((p,i)=>h+=`<div class="prob" data-pr="${i}"><span class="dot s-${p.sev}"></span><span><b>${esc(p.t)}</b><div>${esc(p.d)}</div></span></div>`);return h+"</div>"}
+function subSVG(m,Wd){const c=subCalc(m,S.sub,S.set.board),su=S.sub,b=S.set.board,face=c.face,Hh=c.H,pad=46,sc=(Wd-pad-12)/Math.max(face,1),Ht=Math.round(Hh*sc)+60,Y=v=>Ht-26-v*sc,X=u=>pad+u*sc;
+  let o=`<svg viewBox="0 0 ${Wd} ${Ht}" width="100%" role="img" aria-label="Ansicht von der Einschubseite" style="font-family:var(--f-mono);font-size:10px;display:block">`;
+  o+=`<line x1="${pad-6}" x2="${Wd-6}" y1="${Y(0)}" y2="${Y(0)}" stroke="var(--ink)" stroke-width="1.5"/>`;
+  o+=`<rect x="${X(0)}" y="${Y(Hh)}" width="${face*sc}" height="${b*sc}" fill="var(--brass)"/><rect x="${X(0)}" y="${Y(Hh-b)}" width="${face*sc}" height="${su.frameH*sc}" fill="var(--paper-2)" stroke="var(--ink)" stroke-width="1"/>`;
+  if(c.along==="y"){c.xs.forEach(x=>{o+=`<rect x="${X(x)}" y="${Y(c.legLen)}" width="${su.legW*sc}" height="${c.legLen*sc}" fill="var(--ink)"/>`});
+    c.bays.forEach((bw,i)=>{const x0=c.xs[i]+su.legW,n=Math.max(0,Math.floor((bw-2*su.side+su.gap)/(su.boxW+su.gap)));for(let j=0;j<n;j++){const bx=x0+su.side+j*(su.boxW+su.gap);o+=`<rect x="${X(bx)}" y="${Y(su.boxH)}" width="${su.boxW*sc}" height="${su.boxH*sc}" fill="var(--ballast)" fill-opacity=".35" stroke="var(--ballast)"/>`}
+      o+=`<text x="${X(x0+bw/2)}" y="${Ht-8}" text-anchor="middle" fill="var(--muted)">${fmt(bw)}</text>`})}
+  else{[0,face-su.legW].forEach(x=>{o+=`<rect x="${X(x)}" y="${Y(c.legLen)}" width="${su.legW*sc}" height="${c.legLen*sc}" fill="var(--ink)"/>`});
+    for(let j=0;j<c.lanes;j++){const bx=su.legW+su.side+j*(su.boxW+su.gap);o+=`<rect x="${X(bx)}" y="${Y(su.boxH)}" width="${su.boxW*sc}" height="${su.boxH*sc}" fill="var(--ballast)" fill-opacity=".35" stroke="var(--ballast)"/>`}
+    o+=`<text x="${X(face/2)}" y="${Ht-8}" text-anchor="middle" fill="var(--muted)">${fmt(face-2*su.legW)} lichte Weite</text>`}
+  const ok=c.clear>=c.need;o+=`<text x="4" y="${Y(Hh)+4}" fill="var(--ink)" font-weight="600">${fmt(Hh)}</text><text x="4" y="${Y(c.clear)+4}" fill="${ok?"var(--ink)":"var(--err)"}">${fmt(c.clear)}</text><line x1="${pad-4}" x2="${Wd-6}" y1="${Y(c.clear)}" y2="${Y(c.clear)}" stroke="${ok?"var(--ok)":"var(--err)"}" stroke-dasharray="3 3"/>`;
+  return o+`</svg><div class="mono muted" style="margin-top:4px">Ansicht von ${m.ins} · Höhen in mm ab Boden · lichte Höhe ${fmt(c.clear)} (nötig ${fmt(c.need)})</div>`}
+function tabSub(){const su=S.sub,ms=S.modules||[],m=ms.find(q=>q.id===selMod),H=subHeight(su,S.set.board);
+  let h=`<div class="sec"><h3>Kiste</h3>${su.example?'<p class="muted"><span class="demo">Beispielmaß</span> Trag die Maße deiner Kiste ein.</p>':""}
+  <div class="row"><label>Breite</label>${num("uW",su.boxW,5)}<span class="muted">mm</span></div>
+  <div class="row"><label>Tiefe (Einschub)</label>${num("uD",su.boxD,5)}<span class="muted">mm</span></div>
+  <div class="row"><label>Höhe</label>${num("uH",su.boxH,5)}<span class="muted">mm</span></div>
+  <div class="row"><label>Luft oben</label>${num("uT",su.top,5)}<span class="muted">mm</span></div>
+  <div class="row"><label>Luft seitlich</label>${num("uS",su.side,5)}<span class="muted">mm je Seite</span></div>
+  <div class="row"><label>Abstand Kisten</label>${num("uG",su.gap,5)}<span class="muted">mm</span></div></div>
+  <div class="sec"><h3>Gestell</h3>
+  <div class="row"><label>Anlagenhöhe</label>${num("uA",su.height,10)}<span class="muted">mm (0 = so niedrig wie möglich: ${fmt(H)})</span></div>
+  <div class="row"><label>Fuß (Kantholz)</label>${num("uL",su.legW,1)}<span class="muted">mm Seite</span></div>
+  <div class="row"><label>Zarge Höhe</label>${num("uF",su.frameH,5)}<span class="muted">mm</span></div>
+  <div class="row"><label>Zarge Stärke</label>${num("uFt",su.frameT,1)}<span class="muted">mm</span></div>
+  <div class="row"><label>Max. Fußabstand</label>${num("uM",su.maxSpan,10)}<span class="muted">mm</span></div>
+  <div class="row"><label>Modul max.</label>${num("uMM",su.maxMod,10)}<span class="muted">mm Kantenlänge</span></div>
+  <div class="row"><button class="btn" id="uSplit">Rahmen in Module teilen</button><button class="btn" id="uDraw">Modul zeichnen</button></div></div>`;
+  h+=`<div class="sec"><h3>Module</h3>${ms.length?ms.map(q=>{const c=subCalc(q,su,S.set.board);return`<div class="lv ${q.id===selMod?"on":""}"><span class="sw" style="background:var(--ink)"></span><span class="nm" data-msel="${q.id}">${esc(q.name||"Modul")}</span><span></span><span></span><div class="meta">${fmt(q.w)} × ${fmt(q.d)} · Einschub ${q.ins} · ${c.slots.length} Kisten · ${c.legs.length} Füße</div></div>`}).join(""):'<p class="muted">Noch keine Module. „Rahmen in Module teilen“ oder ein Modul zeichnen (Taste U).</p>'}</div>`;
+  if(m){const c=subCalc(m,su,S.set.board);h+=`<div class="sec"><h3>${esc(m.name||"Modul")}</h3>
+    <div class="row"><input type="text" id="mN" value="${esc(m.name||"")}" aria-label="Name"></div>
+    <div class="row"><label>Breite</label>${num("mW",m.w,10)}<span class="muted">mm</span></div>
+    <div class="row"><label>Tiefe</label>${num("mD",m.d,10)}<span class="muted">mm</span></div>
+    <div class="row"><label>Einschub von</label><select id="mI">${["vorne","hinten","links","rechts"].map(v=>`<option ${v===m.ins?"selected":""}>${v}</option>`).join("")}</select></div>
+    <div class="row mono">${c.slots.length} Kisten · ${c.legs.length} Füße à ${fmt(c.legLen)} mm${c.along==="y"?` · Fach ${fmt(c.bays[0]||0)} mm für ${c.perBay} Kiste${c.perBay>1?"n":""}`:` · ${c.lanes} Bahn${c.lanes===1?"":"en"} × ${c.rows}`}</div>
+    ${c.along==="y"&&c.waste>40?`<div class="row"><button class="btn" id="mFit">Breite aufs Kistenraster (${fmt(c.fitA)} / ${fmt(c.fitB)})</button></div>`:""}
+    ${subSVG(m,300)}<div class="row"><button class="btn" id="mBig">Groß</button><button class="btn warn" id="mDel">Modul löschen</button></div></div>`}
+  return h}
 function tabMat(){const cnt=new Map();let flex=0,flexN=0;S.pieces.forEach(p=>{if(ART[p.art].flex){flex+=Math.min(900,+p.flex.len||0);flexN++}else cnt.set(p.art,(cnt.get(p.art)||0)+1)});
   let ext=0;S.pieces.filter(p=>geom(p).tt).forEach(p=>{const used=cache.get(p.id).ends.filter(e=>conn.con.has(p.id+":"+e.i)).length;ext+=Math.ceil(Math.max(0,used-6)/3)});
   const rows=[...cnt].sort((a,b)=>a[0].localeCompare(b[0])).map(([a,n])=>`<tr><td class="mono">${a}</td><td>${esc(ART[a].name)}${ART[a].incl?` <span class="muted">(${ART[a].incl} Anschlüsse dabei)</span>`:""}</td><td class="n">${n}</td></tr>`).join("")+(ext?`<tr><td class="mono">7287</td><td>Erweiterung Drehscheibe, je 3 Anschlüsse</td><td class="n">${ext}</td></tr>`:"");
   let h=`<div class="sec"><h3>Gleisstückliste</h3><table><thead><tr><th>Art.</th><th>Gleis</th><th style="text-align:right">Stk.</th></tr></thead><tbody>${rows||'<tr><td colspan="3" class="muted">Noch keine Gleise.</td></tr>'}
   ${flexN?`<tr><td class="mono">2205</td><td>Flexgleis, ${flexN} Abschnitte · ${fmt(flex)} mm</td><td class="n">${Math.ceil(flex/900)}</td></tr>`:""}</tbody></table>
   ${flexN?'<p class="muted">Flexgleis: Stückzahl ist eine Schätzung aus der Gesamtlänge, ohne Verschnitt.</p>':""}</div>`;
+  const ms=S.modules||[];if(ms.length){const su=S.sub;let legs=0,legLen=0,z=[];ms.forEach(m=>{const c=subCalc(m,su,S.set.board);legs+=c.legs.length;legLen=c.legLen;z.push([m.name||"Modul",m.w,m.d,Math.max(0,Math.ceil(m.w/600)-1)])});
+    h+=`<div class="sec"><h3>Unterbau</h3><table><thead><tr><th>Teil</th><th style="text-align:right">Maß mm</th><th style="text-align:right">Stk.</th></tr></thead><tbody>
+    <tr><td>Fuß Kantholz ${fmt(su.legW)} × ${fmt(su.legW)}</td><td class="n">${fmt(legLen)}</td><td class="n">${legs}</td></tr>
+    ${(()=>{const g=new Map(),add=(t,l,n)=>{if(n<=0)return;const k=t+"|"+Math.round(l);g.set(k,(g.get(k)||0)+n)};z.forEach(([n,w,d,r])=>{add("Zarge",w,2);add("Zarge",d-2*su.frameT,2);add("Querriegel",d-2*su.frameT,r)});
+      return[...g].sort((a,b)=>a[0].localeCompare(b[0])).map(([k,n])=>{const [t,l]=k.split("|");return`<tr><td>${t} ${fmt(su.frameT)} mm</td><td class="n">${fmt(+l)} × ${fmt(su.frameH)}</td><td class="n">${n}</td></tr>`}).join("")})()}
+    </tbody></table><p class="muted">Zargen ${fmt(su.frameT)} mm stark. Querriegel etwa alle 60 cm, oberhalb der Kisten. Fußlänge bis Unterkante Platte.</p></div>`}
   let area=0;const br=S.boards.map(b=>{area+=b.w*b.h;return`<tr><td>${esc(lev(b.level).name)}</td><td class="n">${fmt(b.w)} × ${fmt(b.h)}</td><td class="n">${fmt(b.w*b.h/1e6)}</td></tr>`}).join("");
   h+=`<div class="sec"><h3>Plattenzuschnitt</h3><table><thead><tr><th>Ebene</th><th style="text-align:right">B × T mm</th><th style="text-align:right">m²</th></tr></thead><tbody>${br||'<tr><td colspan="3" class="muted">Noch keine Platten. Werkzeug „Platte zeichnen“ oder in Ebenen „Platte aus Gleisen“.</td></tr>'}</tbody></table>
   ${area?`<p class="mono">Summe ${fmt(area/1e6)} m² · Plattenstärke ${fmt(S.set.board)} mm</p><p class="muted">Schätzung: ${Math.ceil(area*1.15/(2500*1250))} Platten 2500 × 1250 mm bei 15 % Verschnitt. Für die Preisanfrage die Zuschnittliste oben verwenden.</p><button class="btn" id="copyCut"><svg viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M4 16V4h12"/></svg>Zuschnittliste kopieren</button>`:""}</div>`;
@@ -608,6 +705,14 @@ function bindTab(){const on=(id,ev,f)=>{const e=$(id);if(e)e.addEventListener(ev
     on("fL","change",e=>{snap();p.flex.len=Math.min(900,Math.max(10,+e.target.value));rebuild()});on("fR","change",e=>{snap();p.flex.r=Math.max(0,+e.target.value);rebuild()});
     on("pRise","click",()=>sheet("Strecke anheben",`<p class="muted">Hebt alle mit diesem Gleis verbundenen Gleise um denselben Wert an (negativ = absenken).</p><div class="row"><label>Um</label><input type="number" id="riseV" value="10" step="1"><span class="muted">mm</span></div><button class="btn pri" id="riseGo">Anheben</button>`,()=>{$("riseGo").onclick=()=>{const v=+$("riseV").value,g=group(p.id);snap();S.pieces.forEach(q=>{if(g.has(q.id))q.z+=v});closeSheet();rebuild()}}))}
   if(b){on("bLev","change",e=>{snap();b.level=e.target.value;rebuild()});[["bW","w"],["bH","h"],["bX","x"],["bY","y"]].forEach(([i,k])=>on(i,"change",e=>{snap();b[k]=+e.target.value;rebuild()}))}
+  [["uW","boxW"],["uD","boxD"],["uH","boxH"],["uT","top"],["uS","side"],["uG","gap"],["uA","height"],["uL","legW"],["uF","frameH"],["uFt","frameT"],["uM","maxSpan"],["uMM","maxMod"]].forEach(([i,k])=>on(i,"change",e=>{snap();S.sub[k]=Math.max(0,+e.target.value);if(/^box/.test(k))S.sub.example=false;rebuild()}));
+  on("uDraw","click",()=>setMode("module"));
+  on("uSplit","click",()=>{const w=S.set.frameW,d=S.set.frameH;if(!(w>0&&d>0)){toast("Erst einen Rahmen unter Ebenen setzen");return}snap();const nx=Math.ceil(w/S.sub.maxMod),ny=Math.ceil(d/S.sub.maxMod),mw=Math.round(w/nx),md=Math.round(d/ny);S.modules=[];let i=1;
+    for(let a=0;a<nx;a++)for(let b=0;b<ny;b++)S.modules.push({id:uid(),name:"Modul "+(i++),x:a*mw,y:b*md,w:a===nx-1?w-a*mw:mw,d:b===ny-1?d-b*md:md,ins:b===0?"vorne":"hinten"});selMod=S.modules[0].id;rebuild();toast(`${S.modules.length} Module angelegt`)});
+  document.querySelectorAll("[data-msel]").forEach(x=>x.onclick=()=>{selMod=x.dataset.msel;ui();render()});
+  {const m=(S.modules||[]).find(q=>q.id===selMod);if(m){on("mN","change",e=>{snap();m.name=e.target.value;rebuild()});on("mW","change",e=>{snap();m.w=Math.max(150,+e.target.value);rebuild()});on("mD","change",e=>{snap();m.d=Math.max(150,+e.target.value);rebuild()});
+    on("mI","change",e=>{snap();m.ins=e.target.value;rebuild()});on("mDel","click",()=>{snap();S.modules=S.modules.filter(q=>q.id!==m.id);selMod=null;rebuild()});on("mBig","click",()=>sheet(m.name||"Modul",subSVG(m,620)));
+    on("mFit","click",()=>{const c=subCalc(m,S.sub,S.set.board),a=c.fitA,b=c.fitB;snap();m.w=Math.round(Math.abs(m.w-a)<=Math.abs(b-m.w)?a:b);rebuild();toast(`Breite ${fmt(m.w)} mm`)})}}
   on("conGo","click",()=>setMode("connect"));on("profBig","click",()=>sheet("Seitenansicht Rampe",profileSVG(sel,620,300)));on("rGo","click",buildRamp);
   on("rT","change",e=>{rampCfg.target=e.target.value;$("rOut").innerHTML=rampTxt(rampPlan())});on("rF","change",e=>{rampCfg.form=e.target.value;ui()});
   on("rR","input",e=>{rampCfg.R=+e.target.value;$("rOut").innerHTML=rampTxt(rampPlan())});on("rS","input",e=>{rampCfg.g=+e.target.value;$("rOut").innerHTML=rampTxt(rampPlan())});
@@ -658,9 +763,10 @@ $("bHelp").onclick=()=>sheet("Kurzanleitung",`<table><tbody>
   <tr><td>Ziehen</td><td>Verschiebt die verbundene Strecke, rastet an offenen Enden ein.</td></tr>
   <tr><td>Rampe</td><td>Steigung am ersten Rampengleis eintragen; folgende Gleise übernehmen sie.</td></tr>
   <tr><td>Ebenen</td><td>Beliebig viele, jede mit Höhe, Farbe und eigenen Regeln (Mindestradius, Steigung).</td></tr>
-  <tr><td>P</td><td>Platte zeichnen; Zuschnittliste unter „Material“.</td></tr>
+  <tr><td>P</td><td>Platte zeichnen; Zuschnittliste unter „Liste“.</td></tr>
   <tr><td>Mehrere gleiche</td><td>Oben in der Bibliothek − / + (z. B. 12 × 2231). Oder Gleis im Plan antippen und + / Leertaste.</td></tr>
   <tr><td>N / J</td><td>Gleisnummern bzw. Schienenstöße ein- und ausblenden.</td></tr>
+  <tr><td>U</td><td>Unterbau-Modul zeichnen. Unter „Unterbau“: Kistenmaß, Einschubseite je Modul (vorne, hinten, links, rechts); Füße und Kistenplätze rechnet der Planer.</td></tr>
   <tr><td>O</td><td>Raum als Polygon: Ecken antippen, ersten Punkt antippen schließt. Umschalt rastet auf 15°.</td></tr>
   <tr><td>Rampe</td><td>Offenes Ende rot markieren, unter „Auswahl“ Ziel-Ebene wählen: gerade oder als Wendel.</td></tr>
   <tr><td>Verbinden</td><td>„Mit anderem Ende verbinden“: kürzester Weg mit Mindestradius, Steigung automatisch, nötigenfalls mit Wendel.</td></tr>
@@ -678,7 +784,7 @@ $("bPrint").onclick=()=>{const vis=new Set(S.levels.filter(l=>l.vis).map(l=>l.id
     pv.innerHTML=out;closeSheet();setTimeout(()=>window.print(),50)}})};
 
 document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>{tab=t.dataset.tab;ui()});
-$("mSel").onclick=()=>setMode("sel");$("mBoard").onclick=()=>setMode("board");$("mRoom").onclick=()=>setMode("room");$("bDup").onclick=addSame;$("bNr").onclick=()=>toggleView("showNr");$("bJoint").onclick=()=>toggleView("showJoints");$("bRotL").onclick=()=>rotateSel(7.5);$("bRotR").onclick=()=>rotateSel(-7.5);$("bFlip").onclick=flipActive;$("dirBtn").onclick=flipActive;$("bCycle").onclick=cycleEnd;$("bDel").onclick=delSel;$("bUndo").onclick=doUndo;$("bRedo").onclick=doRedo;$("bFit").onclick=fit;
+$("mSel").onclick=()=>setMode("sel");$("mBoard").onclick=()=>setMode("board");$("mRoom").onclick=()=>setMode("room");$("mMod").onclick=()=>setMode("module");$("bDup").onclick=addSame;$("bNr").onclick=()=>toggleView("showNr");$("bJoint").onclick=()=>toggleView("showJoints");$("bRotL").onclick=()=>rotateSel(7.5);$("bRotR").onclick=()=>rotateSel(-7.5);$("bFlip").onclick=flipActive;$("dirBtn").onclick=flipActive;$("bCycle").onclick=cycleEnd;$("bDel").onclick=delSel;$("bUndo").onclick=doUndo;$("bRedo").onclick=doRedo;$("bFit").onclick=fit;
 $("tLib").onclick=()=>{$("lib").classList.toggle("closed");$("side").classList.add("closed")};$("tSide").onclick=()=>{$("side").classList.toggle("closed");$("lib").classList.add("closed")};
 window.addEventListener("resize",resize);matchMedia("(prefers-color-scheme: dark)").addEventListener("change",()=>{buildLib();render()});
 new MutationObserver(()=>{buildLib();render()}).observe(document.documentElement,{attributes:true,attributeFilter:["data-theme"]});
