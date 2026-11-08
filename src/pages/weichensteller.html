@@ -1,0 +1,22 @@
+<!--meta
+{
+  "title": "Weichensteller – das Gleis-Puzzle | MoRaRo",
+  "description": "Dreh die Gleise, bis der Zug vom Startbahnhof zum Ziel durchkommt. Kostenloses Puzzle von MoRaRo – ohne Anmeldung, auch am Handy.",
+  "out": "weichensteller.html"
+}
+-->
+
+<div class="dark">
+  <header class="page-head wrap"><h1>Weichensteller</h1><p>Das Gleis-Puzzle: Dreh die Gleisstücke, bis der Zug freie Fahrt hat.</p></header>
+  {{GLEIS}}
+</div>
+
+<div class="wrap section">
+  <div id="spiel" style="--sp-bg:#1C1B19;--sp-ink:#F2EFE8;--sp-akzent:#B3261E;--sp-akzent2:#C9A24A;--sp-font-display:var(--font-display);--sp-font-body:var(--font-body)"></div>
+  <noscript><p>Für den Weichensteller braucht dein Browser JavaScript.</p></noscript>
+</div>
+
+<script type="module">
+  import { mount } from "/assets/spiele/weichensteller.js";
+  mount(document.getElementById("spiel"));
+</script>
