@@ -68,7 +68,10 @@ export default {
     const ziel = treffer ? new URL(treffer.ziel, url) : new URL(url);
 
     const eigenerName = ziel.hostname === DOMAIN || ziel.hostname.endsWith("." + DOMAIN);
-    const umziehen = eigenerName && ziel.hostname !== KANONISCH;
+    // Nur www (bzw. Anfragen ohne Regel) auf den kanonischen Namen führen – eine Regel mit
+    // absolutem Ziel auf eine eigene Subdomain (z. B. gleisplaner.moraro.world) bleibt, wie sie ist.
+    const absolutesZiel = treffer && /^https?:\/\//.test(treffer.ziel);
+    const umziehen = eigenerName && ziel.hostname !== KANONISCH && !absolutesZiel;
     if (umziehen) ziel.hostname = KANONISCH;
 
     if (treffer || umziehen) {

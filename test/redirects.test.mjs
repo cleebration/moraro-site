@@ -19,7 +19,7 @@ const ziel = (res) => (res.headers.get("location") || "").replace(BASIS, "");
 
 console.log("\nWeiterleitungen moraro.world\n");
 
-for (const [alt, neu] of [["/bau", "/anlage"], ["/gleisplan", "/anlage"], ["/loks", "/fahrzeuge"], ["/dampfbahnen", "/dampflokfahrten"], ["/dampflokbahnen", "/dampflokfahrten"], ["/gallerie", "/"], ["/blog", "/anlage#baubericht"], ["/galerie", "/"]]) {
+for (const [alt, neu] of [["/bau", "/anlage"], ["/gleisplan", "/gleisplaner"], ["/planer", "/gleisplaner"], ["/loks", "/fahrzeuge"], ["/dampfbahnen", "/dampflokfahrten"], ["/dampflokbahnen", "/dampflokfahrten"], ["/gallerie", "/"], ["/blog", "/anlage#baubericht"], ["/galerie", "/"]]) {
   const r = await hole(alt);
   ok(r.status === 301 && ziel(r) === neu, `${alt} → ${neu} (301)`);
 }
@@ -30,7 +30,7 @@ ok(ziel(await hole("/post/irgendwas")) === "/anlage", "/post/… → /anlage");
   ok(r.status === 301 && r.headers.get("location") === BASIS + "/anlage", "www → ohne www (301)");
   const r2 = await hole("/bau", "https://www.moraro.world");
   ok(r2.headers.get("location") === BASIS + "/anlage", "www + Kurzadresse: EIN Sprung");
-  for (const p of ["/", "/anlage", "/fahrzeuge", "/fahrzeug", "/dampflokfahrten", "/fahrt", "/post", "/bild", "/museumsbahnen", "/modellbahnanlagen", "/impressum", "/datenschutz"]) {
+  for (const p of ["/", "/anlage", "/fahrzeuge", "/fahrzeug", "/dampflokfahrten", "/fahrt", "/post", "/bild", "/museumsbahnen", "/modellbahnanlagen", "/impressum", "/datenschutz", "/gleisplaner"]) {
     const r3 = await hole(p);
     if (r3.status !== 200 || (await r3.text()) !== "ASSET") assert.fail(`${p} geht nicht an die Asset-Schicht`);
   }
@@ -54,6 +54,15 @@ ok(ziel(await hole("/post/irgendwas")) === "/anlage", "/post/… → /anlage");
   ok(r.status === 200 && (await r.json()).nummer === "MR-TEST01" && gesehen.u.endsWith("/api/moraro/einreichung") && gesehen.init.headers["X-Melder-IP"] === "1.2.3.4", "/api/melden → Redaktion (Service Binding, IP mitgegeben)");
   const g = await worker.fetch(new Request(BASIS + "/api/melden"), env, {});
   ok(g.status === 405, "/api/melden nur POST");
+}
+
+{
+  for (const p of ["/gleisplaner-app", "/gleisplaner-app.html"]) {
+    const r = await hole(p);
+    ok(r.status === 301 && r.headers.get("location") === "https://gleisplaner.moraro.world/", `${p} → https://gleisplaner.moraro.world/ (301, Subdomain bleibt)`);
+  }
+  const r = await hole("/gleisplaner-app", "https://www.moraro.world");
+  ok(r.headers.get("location") === "https://gleisplaner.moraro.world/", "www + /gleisplaner-app: direkt zur App");
 }
 
 console.log(`\n${bestanden} Prüfungen bestanden\n`);
